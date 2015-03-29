@@ -92,7 +92,7 @@ def color_status(response_code):
         return color('38;05;9', u"\u2718") + ' ' + str(response_code)
 
 
-for filename in filelist[689:]:
+for filename in filelist:
     # Module
     module_name = os.path.splitext(os.path.basename(filename))[0]
     print color('38;05;3', u"\U0001F4E6"), ' ', module_name
