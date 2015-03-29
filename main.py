@@ -5,16 +5,14 @@ import sys
 import glob
 import time
 from urlparse import urlparse
-from collections import Counter
 
 import git
 import requests
-import ftputil
 
 
 # http://stackoverflow.com/a/29202163
-from requests.packages.urllib3.contrib import pyopenssl
-pyopenssl.inject_into_urllib3()
+from downloaders import HTTPDownloader
+
 
 HOMEBREW_GIT_URL = "https://github.com/Homebrew/homebrew.git"
 CLONE_DIR = 'homebrew'
@@ -46,6 +44,9 @@ else:
 print bold(u"\u2139 Last commit: {} ({})".format(
     repo.head.commit.hexsha[:10], time.strftime('%c', time.gmtime(repo.head.commit.committed_date))
 ))
+
+filelist = glob.glob(os.path.join(FORMULAS_DIR, '*.rb'))
+print bold(u"\u2139 {} formulas found.".format(len(filelist)))
 
 
 def determine_download_strategy(_url_obj):
@@ -91,14 +92,10 @@ def color_status(response_code):
         return color('38;05;9', u"\u2718") + ' ' + str(response_code)
 
 
-schemes = Counter()
-responses = Counter()
-errors = {}
-
-for filename in glob.glob(os.path.join(FORMULAS_DIR, '*.rb')):
+for filename in filelist[689:]:
     # Module
     module_name = os.path.splitext(os.path.basename(filename))[0]
-    # print color('38;05;3', u"\U0001F4E6"), ' ', module_name
+    print color('38;05;3', u"\U0001F4E6"), ' ', module_name
     with open(filename) as formula:
         # Module code
         for line in formula:
@@ -123,7 +120,7 @@ for filename in glob.glob(os.path.join(FORMULAS_DIR, '*.rb')):
                 # Since I don't know how to execute Ruby code inside Python
                 # I'll just ignore those urls who must be eval'd.
                 if "#{" in clean_line:
-                    print filename
+                    pass
 
                 clean_line = [x.strip() for x in clean_line.split(',') if x]
                 url_obj = {
@@ -137,55 +134,16 @@ for filename in glob.glob(os.path.join(FORMULAS_DIR, '*.rb')):
                             url_obj[z.strip().replace(":", "")] = y.strip(' \"\'')
                         else:
                             url_obj[z.strip().replace(":", "")] = y.strip(' \"\'').replace(":", "")
-
+                if 'user' in url_obj.keys():
+                    user, passwd = url_obj.pop('user').split(':')
+                    url_obj.update({'auth': (user, passwd), })
                 strategy = determine_download_strategy(url_obj)
                 if not strategy:
                     print filename, url_obj, clean_line
-                schemes.update([strategy, ])
 
-                # if determine_download_strategy(url_obj) in ('http', 'https'):
-                #     kwargs = {
-                #         'headers': {
-                #             "User-Agent": USER_AGENT,
-                #         },
-                #         'allow_redirects': True,
-                #         'timeout': 20,
-                #     }
-                #     if 'user' in url_obj.keys():
-                #         user, passwd = url_obj['user'].split(':')
-                #         kwargs.update({'auth': (user, passwd), })
-                #     try:
-                #         resp = requests.head(url_obj['url'], **kwargs)
-                #         if resp.status_code != requests.codes.ok:
-                #             resp = requests.get(url_obj['url'], **kwargs)
-                #     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
-                #         resp.status_code = 700
-                #     responses.update([resp.status_code, ])
-                #     print '  ', color_status(resp.status_code), url_obj['url']
-                #     if len(clean_line) > 1:
-                #         print url_obj
-                #     resp.close()
-                #
-                # if resp.status_code != requests.codes.ok:
-                #     errors.update({module_name: {url_obj['url']: resp.status_code}})
-
-                    # FTP ##
-                    # elif o.scheme == "ftp":
-                    #     try:
-                    #         host = ftputil.FTPHost(o.netloc, 'anonymous')
-                    #         host.getcwd()
-                    #         resp = host.path.getsize(o.path)
-                    #     except Exception as e:
-                    #         print line, url, e.message
-                    #     finally:
-                    #         host.close()
-                    # /FTP ##
-                    #
-                    # else:
-                    #     print o
-                    # except Exception as e:
-                    #     print "[!!!]", url, e.message, line
-
-print schemes
-# print responses
-# print errors
+                if determine_download_strategy(url_obj) in ('http', 'https'):
+                    downloader = HTTPDownloader(url_obj)
+                    resp = downloader.run()
+                    print '  ', color_status(resp.STATUS), url_obj['url']
+                    if resp.SSL_ERROR:
+                        print '  ', color('38;05;3', u"    \u26A0  {}".format(resp.SSL_ERROR))
