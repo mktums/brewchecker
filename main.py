@@ -4,14 +4,10 @@ import os
 import sys
 import glob
 import time
-from urlparse import urlparse
 
 import git
 import requests
-
-
-# http://stackoverflow.com/a/29202163
-from downloaders import HTTPDownloader
+from downloaders import DownloadStrategyDetector
 
 
 HOMEBREW_GIT_URL = "https://github.com/Homebrew/homebrew.git"
@@ -49,53 +45,17 @@ filelist = glob.glob(os.path.join(FORMULAS_DIR, '*.rb'))
 print bold(u"\u2139 {} formulas found.".format(len(filelist)))
 
 
-def determine_download_strategy(_url_obj):
-    o = urlparse(_url_obj['url'])
-
-    # Git
-    if o.path.endswith('.git') or o.scheme == 'git':
-        return 'git'
-
-    # Apache website
-    if 'www.apache.org/dyn/closer.cgi' in o.geturl():
-        return 'apache'
-
-    # SVN
-    if 'googlecode.com/svn' in o.geturl() or 'sourceforge.net/svnroot/' in o.geturl() or o.netloc.startswith(
-            'svn.') or 'http://svn\.apache\.org/repos/' in o.geturl() or 'svn+http' in o.scheme:
-        return 'svn'
-
-    # Mercurial
-    if 'googlecode.com/hg' in o.geturl() or 'sourceforge.net/hgweb/' in o.geturl():
-        return 'hg'
-
-    if 'using' in _url_obj.keys():
-        if _url_obj['using'] in (
-            'MatDownloadStrategy',
-            'FreeimageHttpDownloadStrategy',
-            'RpmDownloadStrategy',
-            'HgBundleDownloadStrategy'
-        ):
-            return o.scheme
-        if _url_obj['using'] == 'nounzip':
-            return o.scheme
-        return _url_obj['using']
-
-    else:
-        return o.scheme
-
-
 def color_status(response_code):
     if response_code == requests.codes.ok:
         return color('38;05;10', u"\u2714")
     else:
         return color('38;05;9', u"\u2718") + ' ' + str(response_code)
 
-
 for filename in filelist:
     # Module
     module_name = os.path.splitext(os.path.basename(filename))[0]
     print color('38;05;3', u"\U0001F4E6"), ' ', module_name
+
     with open(filename) as formula:
         # Module code
         for line in formula:
@@ -117,10 +77,22 @@ for filename in filelist:
 
                 clean_line += try_next(line)
 
-                # Since I don't know how to execute Ruby code inside Python
-                # I'll just ignore those urls who must be eval'd.
                 if "#{" in clean_line:
-                    pass
+                    continue
+                    ### Parsing Ruby output
+                    # import subprocess
+                    # value = 'echo "PP.pp(\'{}\'.f.stable)" | ./homebrew/bin/brew irb -r pp -f '.format(module_name)
+                    # output = subprocess.check_output(
+                    #     value,
+                    #     shell=True,
+                    # )
+                    # data = output.splitlines()[4:-2]
+                    # print data
+                    # needed_strings = "@url", "@mirrors", "@patches"
+                    # for n in data:
+                    #     for y in needed_strings:
+                    #         if n.strip().startswith(y):
+                    #             print n
 
                 clean_line = [x.strip() for x in clean_line.split(',') if x]
                 url_obj = {
@@ -137,13 +109,14 @@ for filename in filelist:
                 if 'user' in url_obj.keys():
                     user, passwd = url_obj.pop('user').split(':')
                     url_obj.update({'auth': (user, passwd), })
-                strategy = determine_download_strategy(url_obj)
-                if not strategy:
-                    print filename, url_obj, clean_line
 
-                if determine_download_strategy(url_obj) in ('http', 'https'):
-                    downloader = HTTPDownloader(url_obj)
+                strategy = DownloadStrategyDetector(url_obj).detect()
+
+                if not isinstance(strategy, str):
+
+                    downloader = strategy(url_obj)
                     resp = downloader.run()
-                    print '  ', color_status(resp.STATUS), url_obj['url']
-                    if resp.SSL_ERROR:
-                        print '  ', color('38;05;3', u"    \u26A0  {}".format(resp.SSL_ERROR))
+                    if resp.STATUS != requests.codes.ok:
+                        print '  ', color_status(resp.STATUS), url_obj['url']
+                        if resp.SSL_ERROR:
+                            print '  ', color('38;05;3', u"    \u26A0  {}".format(resp.SSL_ERROR))
