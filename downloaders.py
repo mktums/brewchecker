@@ -2,9 +2,8 @@
 import json
 import re
 
-import requests
-from requests import Request, Session, Timeout, get
-from requests.exceptions import ConnectionError, SSLError
+from requests import Request, Session, Timeout, get, codes
+from requests.exceptions import ConnectionError
 from requests.packages import urllib3
 
 urllib3.disable_warnings()
@@ -60,10 +59,10 @@ class HTTPDownloader(Downloader):
         try:
             resp = self.fetch()
             self.STATUS = resp.status_code
-            if resp.status_code != requests.codes.ok:
+            if resp.status_code != codes.ok:
                 resp = self.fetch(skip_head=True)
             self.STATUS = resp.status_code
-        except (Timeout, ConnectionError) as e:
+        except (Timeout, ConnectionError):
             self.STATUS = 503
         return self
 
