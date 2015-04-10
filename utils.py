@@ -1,9 +1,10 @@
 # coding: utf-8
 import os
-import git
 import requests
 import sys
-import time
+
+from pip.vcs import git
+
 from settings import CLONE_DIR, HOMEBREW_GIT_URL
 
 
@@ -23,16 +24,17 @@ def color_status(response_code):
 
 
 def update_sources():
+    s = git.Git(HOMEBREW_GIT_URL)
     if not os.path.exists(CLONE_DIR):
         sys.stdout.write("  Cloning Homebrew sources… ")
-        repo = git.Repo.clone_from(HOMEBREW_GIT_URL, CLONE_DIR)
+        s.obtain(CLONE_DIR)
         sys.stdout.write('Done!\n')
     else:
-        repo = git.Repo(CLONE_DIR)
+
         sys.stdout.write("  Updating Homebrew sources… ")
-        repo.remotes.origin.pull()
+        s.update(CLONE_DIR, ('master',))
         sys.stdout.write('Done!\n')
 
-    print bold(u"\u2139 Last commit: {} ({})".format(
-        repo.head.commit.hexsha[:10], time.strftime('%c', time.gmtime(repo.head.commit.committed_date))
+    print bold(u"\u2139 Last commit: {}".format(
+        s.get_revision(CLONE_DIR)[:8]
     ))

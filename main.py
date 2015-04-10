@@ -8,13 +8,10 @@ import requests
 from settings import FORMULAS_DIR
 from downloaders import DownloadStrategyDetector
 from formula import Formula
-from utils import bold
+from utils import bold, update_sources
 
 
 def main():
-
-    print u"\U0001F37A  " + bold("Homebrew link checker")
-
     filelist = glob.glob(os.path.join(FORMULAS_DIR, '*.rb'))
 
     print bold(u"\u2139 {} formulas found.".format(len(filelist)))
@@ -37,4 +34,6 @@ def main():
         m.report()
 
 if __name__ == '__main__':
+    print u"\U0001F37A  " + bold("Homebrew link checker")
+    update_sources()
     main()
