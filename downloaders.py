@@ -2,9 +2,10 @@
 import json
 import re
 
-from requests import Request, Session, Timeout, get, codes
+from requests import Timeout, codes, request
 from requests.exceptions import ConnectionError
 from requests.packages import urllib3
+from settings import USER_AGENT
 
 urllib3.disable_warnings()
 
@@ -25,8 +26,6 @@ class HTTPDownloader(Downloader):
     1) First we try to use HTTP HEAD method;
     2) If HEAD falls with error - we use GET method.
     """
-    USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) " \
-                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36"
 
     HEADERS = {
         "User-Agent": USER_AGENT,
@@ -34,25 +33,20 @@ class HTTPDownloader(Downloader):
 
     SSL_ERROR = None
 
-    def _prepare_request(self):
-        req = Request(url=self.url_obj.get('url'), headers=self.HEADERS)
-        if 'auth' in self.url_obj.keys():
-            req.auth = self.url_obj.get('auth')
-        req = req.prepare()
-        if 'cr.yp.to' in req.url:
-            del req.headers['Content-Length']
-        return req
-
     def fetch(self, skip_head=False):
-        s = Session()
+        kwargs = dict(
+            url=self.url_obj.get('url'), headers=self.HEADERS, allow_redirects=True, timeout=180, verify=False
+        )
 
-        req = self._prepare_request()
+        if 'auth' in self.url_obj.keys():
+            kwargs.update({'auth': self.url_obj.get('auth')})
 
         if skip_head:
-            req.method = 'GET'
+            method = 'get'
         else:
-            req.method = 'HEAD'
-        resp = s.send(req, allow_redirects=True, timeout=180, verify=False)
+            method = 'head'
+
+        resp = request(method, **kwargs)
         return resp
 
     def run(self):
@@ -63,7 +57,7 @@ class HTTPDownloader(Downloader):
                 resp = self.fetch(skip_head=True)
             self.STATUS = resp.status_code
         except (Timeout, ConnectionError):
-            self.STATUS = 503
+            self.STATUS = 404
         return self
 
 
@@ -72,12 +66,12 @@ class ApacheDownloader(HTTPDownloader):
     Downloader for apache.org website.
     """
 
-    def _prepare_request(self):
-        req = get(url=self.url_obj.get('url')+'&asjson=1', headers=self.HEADERS, verify=False).content
+    def fetch(self, skip_head=False):
+        req = request('get', url=self.url_obj.get('url')+'&asjson=1', headers=self.HEADERS, verify=False).content
         resp = json.loads(req)
         url = resp.get('preferred') + resp.get('path_info')
-        req = Request(url=url, headers=self.HEADERS).prepare()
-        return req
+        resp = request('get', url=url, headers=self.HEADERS)
+        return resp
 
 
 RE_FTP = [

@@ -1,5 +1,8 @@
 # coding: utf-8
 import os
+import sys
+import requests
+from downloaders import DownloadStrategyDetector
 from utils import color_status, color
 
 
@@ -53,8 +56,18 @@ class Formula(object):
 
                 self.URLS.append(url_obj)
 
+    def process(self):
+        for url_obj in self.URLS:
+            strategy = DownloadStrategyDetector(url_obj).detect()
+            if not isinstance(strategy, str):
+                downloader = strategy(url_obj)
+                resp = downloader.run()
+                if resp.STATUS != requests.codes.ok:
+                    self.ERRORS[url_obj['url']] = resp.STATUS
+
     def report(self):
         if self.ERRORS:
-            print color('38;05;3', u"\U0001F4E6"), ' ', self.name
-            for errno, url in self.ERRORS.items():
-                print '  ', color_status(errno), url
+            sys.stdout.write(color('38;05;3', u"\U0001F4E6") + u'  ' + self.name + u'\n')
+            for url, errno in self.ERRORS.items():
+                sys.stdout.write('  ' + color_status(errno) + u' ' + url + u'\n')
+            sys.stdout.flush()

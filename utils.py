@@ -20,7 +20,7 @@ def color_status(response_code):
     if response_code == requests.codes.ok:
         return color('38;05;10', u"\u2714")
     else:
-        return color('38;05;9', u"\u2718") + ' ' + str(response_code)
+        return color('38;05;9', u"\u2718") + ' ' + unicode(response_code)
 
 
 def update_sources():
