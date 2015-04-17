@@ -1,11 +1,17 @@
 # coding: utf-8
 import json
+import os
 import re
+import shutil
 
+from pip.exceptions import InstallationError
 from requests import Timeout, codes, request
 from requests.exceptions import ConnectionError
 from requests.packages import urllib3
-from settings import USER_AGENT
+
+from settings import USER_AGENT, REPOS_DIR
+from utils import CustomGit
+
 
 urllib3.disable_warnings()
 
@@ -74,6 +80,43 @@ class ApacheDownloader(HTTPDownloader):
         return resp
 
 
+class GitDownloader(Downloader):
+    """
+    Git downloader.
+    For optimization purposes we download bare repos.
+    If tag/branch/commit presence is found - we check it.
+    """
+    def run(self):
+        repo_url = self.url_obj.get('url')
+        rev = self.url_obj.get('revision', False) or self.url_obj.get('branch', False) or self.url_obj.get('tag', False)
+        repo_dir_suffix = repo_url.split('/')[-1]
+
+        if not repo_dir_suffix:
+            repo_dir_suffix = repo_url.split('/')[-2]
+        repo_dir = REPOS_DIR + '/git/' + repo_dir_suffix
+
+        if os.path.exists(repo_dir):
+            shutil.rmtree(repo_dir)
+
+        repo_url = 'git+' + self.url_obj.get('url')
+        repo = CustomGit(repo_url)
+
+        self.STATUS = 200
+
+        try:
+            repo.get_bare(repo_dir)
+        except InstallationError:
+            self.STATUS = 404
+
+        if rev:
+            try:
+                repo.check_commit(rev, repo_dir)
+            except InstallationError:
+                self.STATUS = 404
+
+        return self
+
+
 RE_FTP = [
     re.compile(r'^ftp://'),
 ], 'ftp'
@@ -81,7 +124,7 @@ RE_FTP = [
 RE_GIT = [
     re.compile(r'^https?://.+\.git$'),
     re.compile(r'^git://'),
-], 'git'
+], GitDownloader
 
 RE_APACHE = [
     re.compile(r'https?://www\.apache\.org/dyn/closer\.cgi'),

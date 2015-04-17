@@ -38,3 +38,15 @@ def update_sources():
     print bold(u"\u2139 Last commit: {}".format(
         s.get_revision(CLONE_DIR)[:8]
     ))
+
+
+class CustomGit(git.Git):
+    def get_bare(self, dest):
+        url, _ = self.get_url_rev()
+        rev_options = ['origin/master']
+        rev_display = ''
+        if self.check_destination(dest, url, rev_options, rev_display):
+            self.run_command(['clone', '-q', '--bare', url, dest], show_stdout=False)
+
+    def check_commit(self, sha, location):
+        return self.run_command(['rev-parse', '--verify', sha], show_stdout=False, cwd=location)
