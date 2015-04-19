@@ -1,8 +1,11 @@
 # coding: utf-8
+import StringIO
+import ftplib
 import json
 import os
 import re
 import shutil
+from urlparse import urlparse
 
 from pip.exceptions import InstallationError
 from requests import Timeout, codes, request
@@ -80,6 +83,28 @@ class ApacheDownloader(HTTPDownloader):
         return resp
 
 
+class FTPDownloader(Downloader):
+    def fetch(self, ftp, directory, filename):
+
+        ftp.cwd(directory)
+        f = StringIO.StringIO()
+        ftp.retrbinary("RETR " + filename, f.write)
+        f.close()
+        del f
+
+    def run(self):
+        parsed = urlparse(self.url_obj.get('url'))
+        directory, filename = os.path.split(parsed.path)
+        self.STATUS = 200
+        try:
+            ftp = ftplib.FTP(parsed.netloc)
+            ftp.login()
+            self.fetch(ftp, directory, filename)
+        except Exception:
+            self.STATUS = 404
+        return self
+
+
 class GitDownloader(Downloader):
     """
     Git downloader.
@@ -119,7 +144,7 @@ class GitDownloader(Downloader):
 
 RE_FTP = [
     re.compile(r'^ftp://'),
-], 'ftp'
+], FTPDownloader
 
 RE_GIT = [
     re.compile(r'^https?://.+\.git$'),
