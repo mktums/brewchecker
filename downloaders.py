@@ -1,6 +1,7 @@
 # coding: utf-8
 import StringIO
 import ftplib
+import hashlib
 import json
 import os
 import re
@@ -13,7 +14,7 @@ from requests.exceptions import ConnectionError
 from requests.packages import urllib3
 
 from settings import USER_AGENT, REPOS_DIR
-from utils import CustomGit, CustomHg
+from utils import CustomGit, CustomHg, CustomSVN
 
 
 urllib3.disable_warnings()
@@ -180,6 +181,36 @@ class MercurialDownloader(Downloader):
         return self
 
 
+class SubversionDownloader(Downloader):
+    def run(self):
+        repo_url = self.url_obj.get('url')
+        rev = self.url_obj.get('revision', False)
+        repo_dir_suffix = hashlib.md5(repo_url).hexdigest()
+        repo_dir = REPOS_DIR + '/svn/' + repo_dir_suffix
+
+        if os.path.exists(repo_dir):
+            shutil.rmtree(repo_dir)
+
+        repo_url = 'svn+' + self.url_obj.get('url')
+
+        repo = CustomSVN(repo_url)
+
+        self.STATUS = 200
+
+        try:
+            repo.obtain(repo_dir)
+        except InstallationError:
+            self.STATUS = 404
+
+        if rev:
+            try:
+                repo.info(rev, repo_dir)
+            except InstallationError:
+                self.STATUS = 404
+
+        return self
+
+
 RE_FTP = [
     re.compile(r'^ftp://'),
 ], FTPDownloader
@@ -200,7 +231,7 @@ RE_SVN = [
     re.compile(r'https?://(.+?\.)?sourceforge\.net/svnroot/'),
     re.compile(r'^http://svn\.apache\.org/repos/'),
     re.compile(r'^svn\+http://'),
-], 'svn'
+], SubversionDownloader
 
 RE_CVS = [
     re.compile(r'^cvs://'),

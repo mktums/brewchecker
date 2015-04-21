@@ -2,6 +2,7 @@
 import os
 from pip.vcs.git import Git
 from pip.vcs.mercurial import Mercurial
+from pip.vcs.subversion import Subversion, get_rev_options
 import requests
 import sys
 
@@ -59,3 +60,18 @@ class CustomHg(Mercurial):
     def check_branch(self, branch, location):
         return self.run_command(['log', '-T', "'{branch}\n'", '-r', "branch({})".format(branch), '-l', '1'],
                                 show_stdout=False, cwd=location)
+
+
+class CustomSVN(Subversion):
+    def obtain(self, dest):
+        url, rev = self.get_url_rev()
+        rev_options = get_rev_options(url, rev)
+        if rev:
+            rev_display = ' (to revision %s)' % rev
+        else:
+            rev_display = ''
+        if self.check_destination(dest, url, rev_options, rev_display):
+            self.run_command(['checkout', '-q'] + rev_options + [url, dest], show_stdout=False)
+
+    def info(self, rev, location):
+        return self.run_command(['info', location, '-r', rev], show_stdout=False, extra_environ={'LANG': 'C'})

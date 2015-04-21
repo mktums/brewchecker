@@ -3,7 +3,7 @@ import os
 import sys
 import requests
 
-from downloaders import DownloadStrategyDetector
+from downloaders import DownloadStrategyDetector, SubversionDownloader
 from utils import color_status, color
 
 
@@ -60,7 +60,8 @@ class Formula(object):
     def process(self):
         for url_obj in self.URLS:
             strategy = DownloadStrategyDetector(url_obj).detect()
-            if not isinstance(strategy, str):
+            if strategy == SubversionDownloader:
+            # if not isinstance(strategy, str):
                 downloader = strategy(url_obj)
                 resp = downloader.run()
                 if resp.STATUS != requests.codes.ok:
