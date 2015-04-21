@@ -15,7 +15,7 @@ from requests.exceptions import ConnectionError
 from requests.packages import urllib3
 
 from settings import USER_AGENT, REPOS_DIR
-from utils import CustomGit, CustomHg, CustomSVN
+from vcs import CustomGit, CustomHg, CustomSVN, CVS
 
 urllib3.disable_warnings()
 
@@ -225,6 +225,28 @@ class BazaarDownloader(Downloader):
         return self
 
 
+class CVSDownloader(Downloader):
+    def run(self):
+        repo_url = self.url_obj.get('url')
+        repo_dir_suffix = hashlib.md5(repo_url).hexdigest()
+        repo_dir = REPOS_DIR + '/cvs_root/' + repo_dir_suffix
+        repo = CVS(repo_url)
+
+        if os.path.exists(repo_dir):
+            shutil.rmtree(repo_dir)
+
+        self.STATUS = 200
+
+        try:
+            repo.obtain(repo_dir)
+        except InstallationError:
+            self.STATUS = 404
+
+        shutil.rmtree(repo_dir)
+
+        return self
+
+
 RE_FTP = [
     re.compile(r'^ftp://'),
 ], FTPDownloader
@@ -249,7 +271,7 @@ RE_SVN = [
 
 RE_CVS = [
     re.compile(r'^cvs://'),
-], 'cvs'
+], CVSDownloader
 
 RE_HG = [
     re.compile(r'^https?://(.+?\.)?googlecode\.com/hg'),
