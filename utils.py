@@ -1,9 +1,9 @@
 # coding: utf-8
 import os
+from pip.vcs.git import Git
+from pip.vcs.mercurial import Mercurial
 import requests
 import sys
-
-from pip.vcs import git
 
 from settings import CLONE_DIR, HOMEBREW_GIT_URL
 
@@ -24,7 +24,7 @@ def color_status(response_code):
 
 
 def update_sources():
-    s = git.Git(HOMEBREW_GIT_URL)
+    s = Git(HOMEBREW_GIT_URL)
     if not os.path.exists(CLONE_DIR):
         sys.stdout.write("  Cloning Homebrew sources… ")
         s.obtain(CLONE_DIR)
@@ -40,7 +40,7 @@ def update_sources():
     ))
 
 
-class CustomGit(git.Git):
+class CustomGit(Git):
     def get_bare(self, dest):
         url, _ = self.get_url_rev()
         rev_options = ['origin/master']
@@ -50,3 +50,12 @@ class CustomGit(git.Git):
 
     def check_commit(self, sha, location):
         return self.run_command(['rev-parse', '--verify', sha], show_stdout=False, cwd=location)
+
+
+class CustomHg(Mercurial):
+    def check_commit(self, sha, location):
+        return self.run_command(['log', '-T', "'{node}\n'", '-r', sha], show_stdout=False, cwd=location)
+
+    def check_branch(self, branch, location):
+        return self.run_command(['log', '-T', "'{branch}\n'", '-r', "branch({})".format(branch), '-l', '1'],
+                                show_stdout=False, cwd=location)

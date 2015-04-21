@@ -13,7 +13,7 @@ from requests.exceptions import ConnectionError
 from requests.packages import urllib3
 
 from settings import USER_AGENT, REPOS_DIR
-from utils import CustomGit
+from utils import CustomGit, CustomHg
 
 
 urllib3.disable_warnings()
@@ -85,7 +85,6 @@ class ApacheDownloader(HTTPDownloader):
 
 class FTPDownloader(Downloader):
     def fetch(self, ftp, directory, filename):
-
         ftp.cwd(directory)
         f = StringIO.StringIO()
         ftp.retrbinary("RETR " + filename, f.write)
@@ -107,7 +106,6 @@ class FTPDownloader(Downloader):
 
 class GitDownloader(Downloader):
     """
-    Git downloader.
     For optimization purposes we download bare repos.
     If tag/branch/commit presence is found - we check it.
     """
@@ -136,6 +134,46 @@ class GitDownloader(Downloader):
         if rev:
             try:
                 repo.check_commit(rev, repo_dir)
+            except InstallationError:
+                self.STATUS = 404
+
+        shutil.rmtree(repo_dir)
+        return self
+
+
+class MercurialDownloader(Downloader):
+    def run(self):
+        repo_url = self.url_obj.get('url')
+        rev = self.url_obj.get('revision', False)
+        branch = self.url_obj.get('branch', False)
+        repo_dir_suffix = repo_url.split('/')[-1]
+
+        if not repo_dir_suffix:
+            repo_dir_suffix = repo_url.split('/')[-2]
+        repo_dir = REPOS_DIR + '/hg/' + repo_dir_suffix
+
+        if os.path.exists(repo_dir):
+            shutil.rmtree(repo_dir)
+
+        repo_url = 'hg+' + self.url_obj.get('url')
+        repo = CustomHg(repo_url)
+
+        self.STATUS = 200
+
+        try:
+            repo.obtain(repo_dir)
+        except InstallationError:
+            self.STATUS = 404
+
+        if rev:
+            try:
+                repo.check_commit(rev, repo_dir)
+            except InstallationError:
+                self.STATUS = 404
+
+        if branch:
+            try:
+                repo.check_branch(branch, repo_dir)
             except InstallationError:
                 self.STATUS = 404
 
@@ -172,7 +210,7 @@ RE_HG = [
     re.compile(r'^https?://(.+?\.)?googlecode\.com/hg'),
     re.compile(r'^hg://'),
     re.compile(r'https?://(.+?\.)?sourceforge\.net/hgweb/'),
-], 'hg'
+], MercurialDownloader
 
 RE_BZR = [
     re.compile(r'^bzr://'),
