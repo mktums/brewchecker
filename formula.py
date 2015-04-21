@@ -60,12 +60,11 @@ class Formula(object):
     def process(self):
         for url_obj in self.URLS:
             strategy = DownloadStrategyDetector(url_obj).detect()
-            if isinstance(strategy, str):
-                print strategy, url_obj
-            #     downloader = strategy(url_obj)
-            #     resp = downloader.run()
-            #     if resp.STATUS != requests.codes.ok:
-            #         self.ERRORS[url_obj['url']] = resp.STATUS
+            if not isinstance(strategy, str):
+                downloader = strategy(url_obj)
+                resp = downloader.run()
+                if resp.STATUS != requests.codes.ok:
+                    self.ERRORS[url_obj['url']] = resp.STATUS
 
     def report(self):
         if self.ERRORS:
