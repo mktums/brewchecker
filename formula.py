@@ -3,7 +3,7 @@ import os
 import sys
 import requests
 
-from downloaders import DownloadStrategyDetector, SubversionDownloader
+from downloaders import DownloadStrategyDetector
 from utils import color_status, color
 
 
