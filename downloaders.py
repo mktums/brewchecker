@@ -15,7 +15,7 @@ from requests.exceptions import ConnectionError
 from requests.packages import urllib3
 
 from settings import USER_AGENT, REPOS_DIR
-from vcs import CustomGit, CustomHg, CustomSVN, CVS
+from vcs import CustomGit, CustomHg, CustomSVN, CVS, Fossil
 
 urllib3.disable_warnings()
 
@@ -239,10 +239,32 @@ class CVSDownloader(Downloader):
 
         try:
             repo.obtain(repo_dir)
-        except InstallationError:
+        except Exception:
             self.STATUS = 404
 
         shutil.rmtree(repo_dir)
+
+        return self
+
+
+class FossilDownloader(Downloader):
+    def run(self):
+        repo_url = self.url_obj.get('url')
+        repo_file_name = hashlib.md5(repo_url).hexdigest()
+        repo_file = REPOS_DIR + '/fossil/' + repo_file_name
+        repo = Fossil(repo_url)
+
+        if os.path.exists(repo_file):
+            os.remove(repo_file)
+
+        self.STATUS = 200
+
+        try:
+            repo.obtain(repo_file)
+        except Exception:
+            self.STATUS = 404
+
+        os.remove(repo_file)
 
         return self
 
@@ -285,7 +307,7 @@ RE_BZR = [
 
 RE_FOSSIL = [
     re.compile(r'^fossil://'),
-], 'fossil'
+], FossilDownloader
 
 RE_PATTERNS = (
     RE_FTP, RE_GIT, RE_APACHE, RE_SVN, RE_CVS, RE_HG, RE_BZR, RE_FOSSIL

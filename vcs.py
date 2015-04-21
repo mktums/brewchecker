@@ -46,12 +46,12 @@ class CustomSVN(Subversion):
         return self.run_command(['info', location, '-r', rev], show_stdout=False, extra_environ={'LANG': 'C'})
 
 
-class CVS(object):
-    name = 'cvs'
+class SimpleVCS(object):
+    name = ''
 
     def __init__(self, url=None):
         self.url = url
-        super(CVS, self).__init__()
+        super(SimpleVCS, self).__init__()
 
     def run_command(self, cmd, show_stdout=True,
                     filter_stdout=None, cwd=None,
@@ -76,6 +76,10 @@ class CVS(object):
             else:
                 raise  # re-raise exception if a different error occured
 
+
+class CVS(SimpleVCS):
+    name = 'cvs'
+
     def obtain(self, dest):
         if not os.path.exists(dest):
             makedirs(dest)
@@ -86,3 +90,10 @@ class CVS(object):
             ], show_stdout=False)
 
         return
+
+
+class Fossil(SimpleVCS):
+    name = 'fossil'
+
+    def obtain(self, dest):
+        return self.run_command(['clone', self.url, dest], show_stdout=False)
