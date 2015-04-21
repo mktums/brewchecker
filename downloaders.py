@@ -9,13 +9,13 @@ import shutil
 from urlparse import urlparse
 
 from pip.exceptions import InstallationError
+from pip.vcs.bazaar import Bazaar
 from requests import Timeout, codes, request
 from requests.exceptions import ConnectionError
 from requests.packages import urllib3
 
 from settings import USER_AGENT, REPOS_DIR
 from utils import CustomGit, CustomHg, CustomSVN
-
 
 urllib3.disable_warnings()
 
@@ -153,16 +153,13 @@ class MercurialDownloader(Downloader):
             repo_dir_suffix = repo_url.split('/')[-2]
         repo_dir = REPOS_DIR + '/hg/' + repo_dir_suffix
 
-        if os.path.exists(repo_dir):
-            shutil.rmtree(repo_dir)
-
         repo_url = 'hg+' + self.url_obj.get('url')
         repo = CustomHg(repo_url)
 
         self.STATUS = 200
 
         try:
-            repo.obtain(repo_dir)
+            repo.unpack(repo_dir)
         except InstallationError:
             self.STATUS = 404
 
@@ -188,9 +185,6 @@ class SubversionDownloader(Downloader):
         repo_dir_suffix = hashlib.md5(repo_url).hexdigest()
         repo_dir = REPOS_DIR + '/svn/' + repo_dir_suffix
 
-        if os.path.exists(repo_dir):
-            shutil.rmtree(repo_dir)
-
         repo_url = 'svn+' + self.url_obj.get('url')
 
         repo = CustomSVN(repo_url)
@@ -198,7 +192,7 @@ class SubversionDownloader(Downloader):
         self.STATUS = 200
 
         try:
-            repo.obtain(repo_dir)
+            repo.unpack(repo_dir)
         except InstallationError:
             self.STATUS = 404
 
@@ -207,6 +201,26 @@ class SubversionDownloader(Downloader):
                 repo.info(rev, repo_dir)
             except InstallationError:
                 self.STATUS = 404
+
+        return self
+
+
+class BazaarDownloader(Downloader):
+    def run(self):
+        repo_url = self.url_obj.get('url')
+        repo_dir_suffix = hashlib.md5(repo_url).hexdigest()
+        repo_dir = REPOS_DIR + '/bzr/' + repo_dir_suffix
+
+        repo_url = 'bzr+' + self.url_obj.get('url')
+
+        repo = Bazaar(repo_url)
+
+        self.STATUS = 200
+
+        try:
+            repo.unpack(repo_dir)
+        except InstallationError:
+            self.STATUS = 404
 
         return self
 
@@ -295,5 +309,4 @@ class DownloadStrategyDetector():
 
     def detect(self):
         _strategy = self.from_params() or self.from_url()
-
         return _strategy
