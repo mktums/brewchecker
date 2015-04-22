@@ -23,6 +23,12 @@ class CustomGit(Git):
     def check_commit(self, sha, location):
         return self.run_command(['rev-parse', '--verify', sha], show_stdout=False, cwd=location)
 
+    def check_branch(self, rev, location):
+        return self.check_commit(rev, location)
+
+    def check_tag(self, rev, location):
+        return self.check_commit(rev, location)
+
 
 class CustomHg(Mercurial):
     def check_commit(self, sha, location):
@@ -44,7 +50,7 @@ class CustomSVN(Subversion):
         if self.check_destination(dest, url, rev_options, rev_display):
             self.run_command(['checkout', '-q'] + rev_options + [url, dest], show_stdout=False)
 
-    def info(self, rev, location):
+    def check_commit(self, rev, location):
         return self.run_command(['info', location, '-r', rev], show_stdout=False, extra_environ={'LANG': 'C'})
 
 

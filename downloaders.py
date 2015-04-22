@@ -104,168 +104,128 @@ class FTPDownloader(Downloader):
         return self
 
 
-class GitDownloader(Downloader):
+class AbstractVCSDownloader(Downloader):
+    NAME = None
+    VCS_CLASS = None
+
+    REPO_URL = None
+    REPO_DIR = None
+    REVISION = None
+    BRANCH = None
+    TAG = None
+
+    def __init__(self, url_obj):
+        super(AbstractVCSDownloader, self).__init__(url_obj)
+        self.REPO_URL = self.url_obj.get('url')
+
+        repo_dir_name = hashlib.md5(self.REPO_URL).hexdigest()
+        self.REPO_DIR = '{}/{}/{}'.format(REPOS_DIR, self.NAME, repo_dir_name)
+
+        self.REVISION = self.url_obj.get('revision', None)
+        self.BRANCH = self.url_obj.get('branch', None)
+        self.TAG = self.url_obj.get('tag', None)
+
+    def get_repo(self, repo):
+        try:
+            repo.obtain(self.REPO_DIR)
+        except Exception:
+            self.STATUS = 404
+
+    def clean(self):
+        if os.path.exists(self.REPO_DIR):
+            try:
+                shutil.rmtree(self.REPO_DIR)
+            except OSError:
+                pass
+
+    def run_checks(self, repo):
+        try:
+            if self.REVISION:
+                repo.check_commit(self.REVISION, self.REPO_DIR)
+
+            if self.BRANCH:
+                repo.check_branch(self.BRANCH, self.REPO_DIR)
+
+            if self.TAG:
+                repo.check_tag(self.TAG, self.REPO_DIR)
+
+        except InstallationError:
+            self.STATUS = 404
+
+    def run(self):
+        self.clean()
+        repo = self.VCS_CLASS(self.REPO_URL)
+        self.STATUS = 200
+        self.get_repo(repo)
+
+        if any([self.REVISION, self.BRANCH, self.TAG]):
+            self.run_checks(repo)
+
+        self.clean()
+
+        return self
+
+
+class GitDownloader(AbstractVCSDownloader):
     """
     For optimization purposes we download bare repos.
-    If tag/branch/commit presence is found - we check it.
     """
-    def run(self):
-        repo_url = self.url_obj.get('url')
-        rev = self.url_obj.get('revision', False) or self.url_obj.get('branch', False) or self.url_obj.get('tag', False)
-        repo_dir_suffix = repo_url.split('/')[-1]
+    NAME = 'git'
+    VCS_CLASS = CustomGit
 
-        if not repo_dir_suffix:
-            repo_dir_suffix = repo_url.split('/')[-2]
-        repo_dir = REPOS_DIR + '/git/' + repo_dir_suffix
+    def __init__(self, url_obj):
+        super(GitDownloader, self).__init__(url_obj)
+        self.REPO_URL = 'git+{}'.format(self.REPO_URL)
 
-        if os.path.exists(repo_dir):
-            shutil.rmtree(repo_dir)
-
-        repo_url = 'git+' + self.url_obj.get('url')
-        repo = CustomGit(repo_url)
-
-        self.STATUS = 200
-
+    def get_repo(self, repo):
         try:
-            repo.get_bare(repo_dir)
+            repo.get_bare(self.REPO_DIR)
         except InstallationError:
             self.STATUS = 404
 
-        if rev:
+
+class MercurialDownloader(AbstractVCSDownloader):
+    NAME = 'hg'
+    VCS_CLASS = CustomHg
+
+    def __init__(self, url_obj):
+        super(MercurialDownloader, self).__init__(url_obj)
+        self.REPO_URL = 'hg+{}'.format(self.REPO_URL)
+
+
+class SubversionDownloader(AbstractVCSDownloader):
+    NAME = 'svn'
+    VCS_CLASS = CustomSVN
+
+    def __init__(self, url_obj):
+        super(SubversionDownloader, self).__init__(url_obj)
+        self.REPO_URL = 'svn+{}'.format(self.REPO_URL)
+
+
+class BazaarDownloader(AbstractVCSDownloader):
+    NAME = 'bzr'
+    VCS_CLASS = Bazaar
+
+    def __init__(self, url_obj):
+        super(BazaarDownloader, self).__init__(url_obj)
+        self.REPO_URL = 'bzr+{}'.format(self.REPO_URL)
+
+
+class CVSDownloader(AbstractVCSDownloader):
+    NAME = 'cvs_root'
+    VCS_CLASS = CVS
+
+
+class FossilDownloader(AbstractVCSDownloader):
+    NAME = 'fossil'
+    VCS_CLASS = Fossil
+
+    def clean(self):
+        if os.path.exists(self.REPO_DIR):
             try:
-                repo.check_commit(rev, repo_dir)
-            except InstallationError:
-                self.STATUS = 404
-
-        shutil.rmtree(repo_dir)
-        return self
-
-
-class MercurialDownloader(Downloader):
-    def run(self):
-        repo_url = self.url_obj.get('url')
-        rev = self.url_obj.get('revision', False)
-        branch = self.url_obj.get('branch', False)
-        repo_dir_suffix = repo_url.split('/')[-1]
-
-        if not repo_dir_suffix:
-            repo_dir_suffix = repo_url.split('/')[-2]
-        repo_dir = REPOS_DIR + '/hg/' + repo_dir_suffix
-
-        repo_url = 'hg+' + self.url_obj.get('url')
-        repo = CustomHg(repo_url)
-
-        self.STATUS = 200
-
-        try:
-            repo.unpack(repo_dir)
-        except InstallationError:
-            self.STATUS = 404
-
-        if rev:
-            try:
-                repo.check_commit(rev, repo_dir)
-            except InstallationError:
-                self.STATUS = 404
-
-        if branch:
-            try:
-                repo.check_branch(branch, repo_dir)
-            except InstallationError:
-                self.STATUS = 404
-
-        return self
-
-
-class SubversionDownloader(Downloader):
-    def run(self):
-        repo_url = self.url_obj.get('url')
-        rev = self.url_obj.get('revision', False)
-        repo_dir_suffix = hashlib.md5(repo_url).hexdigest()
-        repo_dir = REPOS_DIR + '/svn/' + repo_dir_suffix
-
-        repo_url = 'svn+' + self.url_obj.get('url')
-
-        repo = CustomSVN(repo_url)
-
-        self.STATUS = 200
-
-        try:
-            repo.unpack(repo_dir)
-        except InstallationError:
-            self.STATUS = 404
-
-        if rev:
-            try:
-                repo.info(rev, repo_dir)
-            except InstallationError:
-                self.STATUS = 404
-
-        return self
-
-
-class BazaarDownloader(Downloader):
-    def run(self):
-        repo_url = self.url_obj.get('url')
-        repo_dir_suffix = hashlib.md5(repo_url).hexdigest()
-        repo_dir = REPOS_DIR + '/bzr/' + repo_dir_suffix
-
-        repo_url = 'bzr+' + self.url_obj.get('url')
-
-        repo = Bazaar(repo_url)
-
-        self.STATUS = 200
-
-        try:
-            repo.unpack(repo_dir)
-        except InstallationError:
-            self.STATUS = 404
-
-        return self
-
-
-class CVSDownloader(Downloader):
-    def run(self):
-        repo_url = self.url_obj.get('url')
-        repo_dir_suffix = hashlib.md5(repo_url).hexdigest()
-        repo_dir = REPOS_DIR + '/cvs_root/' + repo_dir_suffix
-        repo = CVS(repo_url)
-
-        if os.path.exists(repo_dir):
-            shutil.rmtree(repo_dir)
-
-        self.STATUS = 200
-
-        try:
-            repo.obtain(repo_dir)
-        except Exception:
-            self.STATUS = 404
-
-        shutil.rmtree(repo_dir)
-
-        return self
-
-
-class FossilDownloader(Downloader):
-    def run(self):
-        repo_url = self.url_obj.get('url')
-        repo_file_name = hashlib.md5(repo_url).hexdigest()
-        repo_file = REPOS_DIR + '/fossil/' + repo_file_name
-        repo = Fossil(repo_url)
-
-        if os.path.exists(repo_file):
-            os.remove(repo_file)
-
-        self.STATUS = 200
-
-        try:
-            repo.obtain(repo_file)
-        except Exception:
-            self.STATUS = 404
-
-        os.remove(repo_file)
-
-        return self
+                os.remove(self.REPO_DIR)
+            except OSError:
+                pass
 
 
 RE_FTP = [
