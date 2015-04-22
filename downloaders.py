@@ -77,8 +77,12 @@ class ApacheDownloader(HTTPDownloader):
         return resp.get('preferred') + resp.get('path_info')
 
     def run(self):
+        # Saving original URL for logs
+        old_url = self.url_obj.get('url')
         self.url_obj['url'] = self.get_mirror()
         super(ApacheDownloader, self).run()
+        # Restoring original URL
+        self.url_obj['url'] = old_url
         return self
 
 
