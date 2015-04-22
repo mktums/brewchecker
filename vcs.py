@@ -44,7 +44,7 @@ class CustomSVN(Subversion):
         url, rev = self.get_url_rev()
         rev_options = get_rev_options(url, rev)
         if rev:
-            rev_display = ' (to revision %s)' % rev
+            rev_display = ' (to revision {})'.format(rev)
         else:
             rev_display = ''
         if self.check_destination(dest, url, rev_options, rev_display):
@@ -80,7 +80,7 @@ class SimpleVCS(object):
             # errno.ENOENT = no such file or directory
             # In other words, the VCS executable isn't available
             if e.errno == errno.ENOENT:
-                raise BadCommand('Cannot find command %r' % self.name)
+                raise BadCommand('Cannot find command {}'.format(self.name))
             else:
                 raise  # re-raise exception if a different error occured
 

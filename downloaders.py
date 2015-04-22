@@ -23,7 +23,7 @@ class Downloader(object):
         self.url_obj = url_obj
 
     def run(self):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 ####
@@ -123,7 +123,7 @@ class AbstractVCSDownloader(Downloader):
         self.REPO_URL = self.url_obj.get('url')
 
         repo_dir_name = hashlib.md5(self.REPO_URL).hexdigest()
-        self.REPO_DIR = '{}/{}/{}'.format(REPOS_DIR, self.NAME, repo_dir_name)
+        self.REPO_DIR = '{0}/{1}/{2}'.format(REPOS_DIR, self.NAME, repo_dir_name)
 
         self.REVISION = self.url_obj.get('revision', None)
         self.BRANCH = self.url_obj.get('branch', None)
