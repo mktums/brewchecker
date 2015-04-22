@@ -2,7 +2,6 @@
 import os
 import sys
 
-import requests
 from pip.vcs.git import Git
 
 from settings import CLONE_DIR, HOMEBREW_GIT_URL
@@ -17,7 +16,7 @@ def bold(string_):
 
 
 def color_status(response_code):
-    if response_code == requests.codes.ok:
+    if response_code == 200:
         return color('38;05;10', u"\u2714")
     else:
         return color('38;05;9', u"\u2718") + ' ' + unicode(response_code)
@@ -40,10 +39,10 @@ def update_sources():
     ))
 
 
-class cd:
+class CD:
     """Context manager for changing the current working directory"""
-    def __init__(self, newPath):
-        self.newPath = os.path.expanduser(newPath)
+    def __init__(self, new_path):
+        self.newPath = os.path.expanduser(new_path)
 
     def __enter__(self):
         self.savedPath = os.getcwd()
@@ -51,3 +50,8 @@ class cd:
 
     def __exit__(self, etype, value, traceback):
         os.chdir(self.savedPath)
+
+
+def signal_handler(signal, frame):
+    print '\rYou pressed Ctrl+C!'
+    sys.exit(0)

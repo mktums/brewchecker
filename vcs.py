@@ -2,12 +2,14 @@
 import logging
 import errno
 from os import makedirs
+
 from pip.exceptions import BadCommand
 from pip.utils import call_subprocess
 from pip.vcs.git import Git, os
 from pip.vcs.mercurial import Mercurial
 from pip.vcs.subversion import Subversion, get_rev_options
-from utils import cd
+
+from utils import CD
 
 
 class CustomGit(Git):
@@ -84,7 +86,7 @@ class CVS(SimpleVCS):
         if not os.path.exists(dest):
             makedirs(dest)
 
-        with cd(dest):
+        with CD(dest):
             self.run_command([
                 '-d{}'.format(self.url), 'checkout', self.url.split('/')[-1]
             ], show_stdout=False)

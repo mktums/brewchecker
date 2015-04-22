@@ -2,10 +2,13 @@
 # coding: utf-8
 import os
 import glob
+import signal
 
 from settings import FORMULAS_DIR
 from formula import Formula
-from utils import bold, update_sources
+from utils import bold, update_sources, signal_handler
+
+signal.signal(signal.SIGINT, signal_handler)
 
 
 def main():

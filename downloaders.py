@@ -8,16 +8,12 @@ import re
 import shutil
 from urlparse import urlparse
 
+import pycurl
 from pip.exceptions import InstallationError
 from pip.vcs.bazaar import Bazaar
-from requests import Timeout, codes, request
-from requests.exceptions import ConnectionError
-from requests.packages import urllib3
 
 from settings import USER_AGENT, REPOS_DIR
 from vcs import CustomGit, CustomHg, CustomSVN, CVS, Fossil
-
-urllib3.disable_warnings()
 
 
 class Downloader(object):
@@ -30,43 +26,42 @@ class Downloader(object):
         raise NotImplemented
 
 
+####
+# N.B.: Here were HTTPDownloader and ApacheDownloader based on requests lib.
+# You can access them by checkouting @6c652e87
+####
 class HTTPDownloader(Downloader):
-    """
-    HTTP downloads comes with two ways of "downloading":
-    1) First we try to use HTTP HEAD method;
-    2) If HEAD falls with error - we use GET method.
-    """
-
-    HEADERS = {
-        "User-Agent": USER_AGENT,
-    }
-
-    SSL_ERROR = None
-
-    def fetch(self, skip_head=False):
-        kwargs = dict(
-            url=self.url_obj.get('url'), headers=self.HEADERS, allow_redirects=True, timeout=180, verify=False
-        )
+    def fetch(self, skip_head=False, url=None):
+        c = pycurl.Curl()
+        url = self.url_obj.get('url') if not url else url
+        blackhole = StringIO.StringIO()
+        c.setopt(c.USERAGENT, USER_AGENT)
+        c.setopt(c.URL, url)
+        c.setopt(c.WRITEFUNCTION, blackhole.write)
+        c.setopt(c.FOLLOWLOCATION, True)
+        header = StringIO.StringIO()
+        c.setopt(c.HEADERFUNCTION, header.write)
+        c.setopt(c.SSL_VERIFYPEER, 0)
 
         if 'auth' in self.url_obj.keys():
-            kwargs.update({'auth': self.url_obj.get('auth')})
+            c.setopt(c.HTTPAUTH, c.HTTPAUTH_ANY)
+            c.setopt(c.USERPWD, ":".join(self.url_obj.get('auth')))
 
-        if skip_head:
-            method = 'get'
-        else:
-            method = 'head'
+        if not skip_head:
+            c.setopt(c.NOBODY, True)
 
-        resp = request(method, **kwargs)
-        return resp
+        c.perform()
+        self.STATUS = c.getinfo(c.HTTP_CODE)
+        c.close()
+
+        return self.STATUS, blackhole
 
     def run(self):
         try:
-            resp = self.fetch()
-            self.STATUS = resp.status_code
-            if resp.status_code != codes.ok:
-                resp = self.fetch(skip_head=True)
-            self.STATUS = resp.status_code
-        except (Timeout, ConnectionError):
+            self.STATUS, _ = self.fetch()
+            if self.STATUS != 200:
+                self.STATUS, _ = self.fetch(skip_head=True)
+        except Exception:
             self.STATUS = 404
         return self
 
@@ -76,16 +71,20 @@ class ApacheDownloader(HTTPDownloader):
     Downloader for apache.org website.
     """
 
-    def fetch(self, skip_head=False):
-        req = request('get', url=self.url_obj.get('url')+'&asjson=1', headers=self.HEADERS, verify=False).content
-        resp = json.loads(req)
-        url = resp.get('preferred') + resp.get('path_info')
-        resp = request('get', url=url, headers=self.HEADERS)
-        return resp
+    def get_mirror(self):
+        _, body = self.fetch(url=self.url_obj.get('url')+'&asjson=1', skip_head=True)
+        resp = json.loads(body.getvalue())
+        return resp.get('preferred') + resp.get('path_info')
+
+    def run(self):
+        self.url_obj['url'] = self.get_mirror()
+        super(ApacheDownloader, self).run()
+        return self
 
 
 class FTPDownloader(Downloader):
-    def fetch(self, ftp, directory, filename):
+    @staticmethod
+    def fetch(ftp, directory, filename):
         ftp.cwd(directory)
         f = StringIO.StringIO()
         ftp.retrbinary("RETR " + filename, f.write)
