@@ -20,7 +20,7 @@ class Formula(object):
             clean_line = line.strip()
 
             # Get all urls from module
-            if clean_line.startswith(('url', 'mirror ')):
+            if clean_line.startswith(('url ', 'mirror ')):
 
                 # Clean url
                 def try_next(_line):
