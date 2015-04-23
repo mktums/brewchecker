@@ -20,7 +20,7 @@ class Formula(object):
             clean_line = line.strip()
 
             # Get all urls from module
-            if clean_line.startswith('url '):
+            if clean_line.startswith(('url', 'mirror ')):
 
                 # Clean url
                 def try_next(_line):
@@ -40,7 +40,7 @@ class Formula(object):
 
                 clean_line = [x.strip() for x in clean_line.split(',') if x]
                 url_obj = {
-                    'url': clean_line[0].replace("url ", "").strip('\'\" ')
+                    'url': clean_line[0].split(' ')[1].strip('\'\" ')
                 }
 
                 if len(clean_line) > 1:
