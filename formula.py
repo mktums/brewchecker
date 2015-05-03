@@ -1,73 +1,113 @@
 # coding: utf-8
-import os
-import sys
+from pip._vendor.distlib.compat import OrderedDict
 
-from downloaders import DownloadStrategyDetector, Downloader
+from downloaders import (
+    CurlDownloader, GitDownloader, ApacheDownloader, SubversionDownloader, MercurialDownloader,
+    CVSDownloader, BazaarDownloader, FossilDownloader
+)
 from utils import color_status, color
 
 
+class Resource(object):
+    def __init__(self, specs):
+        self.url = specs.get('url')
+        self.specs = specs.get('specs')
+        mirrors = specs.get('mirrors', [])
+        # N.B.:
+        # Homebrew's documentation is unclear about setting options for mirrors (like :using, :revision, etc),
+        # so at this moment we can only assume that mirror MUST be a curlable[1] file.
+        #
+        # We must investigate this sourcecode for more details:
+        # https://github.com/Homebrew/homebrew/blob/d12b17e99b3071fba88fb5a6cbcefcbe136f7733/Library/Homebrew/download_strategy.rb#L260-L324
+        #
+        # For now it seems that mirrors exists only in CurlDownloadStrategy,
+        # and they shares `meta` (or `specs`) with parent resource.
+        #
+        # [1] See https://indiewebcamp.com/curlable
+        self.mirrors = [Resource({'url': url, 'strategy': 'CurlDownloadStrategy'}) for url in mirrors]
+
+        self.strategy = specs.get('strategy')
+
+        try:
+            self.downloader = self.get_downloader_class()
+        except KeyError:
+            self.downloader = None
+
+    def get_downloader_class(self):
+        downloaders = {
+            'CurlDownloadStrategy': CurlDownloader,
+            'GitDownloadStrategy': GitDownloader,
+            'CurlApacheMirrorDownloadStrategy': ApacheDownloader,
+            'SubversionDownloadStrategy': SubversionDownloader,
+            'MercurialDownloadStrategy': MercurialDownloader,
+            # Following strategies are user-contributed, and basically just CurlDownloadStrategy
+            # with some after-download actions.
+            'Formulary::Formulae::FreeimageHttpDownloadStrategy': CurlDownloader,
+            'Formulary::Formulae::RpmDownloadStrategy': CurlDownloader,
+            'Formulary::Formulae::MatDownloadStrategy': CurlDownloader,
+            # Strategies below currently aren't used in formulas' "stable" section
+            # but we still have to have support them.
+            'CVSDownloadStrategy': CVSDownloader,
+            'BazaarDownloadStrategy': BazaarDownloader,
+            'FossilDownloadStrategy': FossilDownloader,
+        }
+        try:
+            downloader = downloaders.get(self.strategy)
+        except KeyError as e:
+            raise RuntimeWarning("No downloader found for {}".format(e.args))
+        return downloader
+
+    def get_downloader(self):
+        return self.downloader(self)
+
+
 class Formula(object):
-    def __init__(self, filepath):
-        with open(filepath) as text:
-            self.content = text.readlines()
-        self.name = os.path.splitext(os.path.basename(filepath))[0]
-        self.URLS = list()
-        self.ERRORS = dict()
+    def __init__(self, module):
+        name, specs = module
+        self.name = name
+        self.main = Resource(specs.get('main'))
+        self.patches = [Resource(patch) for patch in specs.get('patches', None)]
+        self.resources = {name: Resource(spec) for name, spec in specs.get('resources', None).items()}
 
-    def clean_urls(self):
-        formula = iter(self.content)
-        for line in formula:
-            clean_line = line.strip()
+    def run_main(self):
+        downloader = self.main.get_downloader()
+        self.main.status = downloader.run().STATUS
+        print color_status(self.main.status) + '  Main URL: {}'.format(self.main.url)
 
-            # Get all urls from module
-            if clean_line.startswith(('url ', 'mirror ')):
+    def run_patches(self):
+        for patch in self.patches:
+            downloader = patch.get_downloader()
+            patch.status = downloader.run().STATUS
+            print color_status(patch.status) + '  Patch: {}'.format(patch.url)
 
-                # Clean url
-                def try_next(_line):
-                    if _line.strip().endswith(','):
-                        next_line = next(formula)
-                        if next_line.strip().startswith('#'):
-                            return try_next(next_line)
-                        else:
-                            return next_line + try_next(next_line)
-                    else:
-                        return ''
+    def run_resources(self):
+        for name, resource in self.resources.iteritems():
+            downloader = resource.get_downloader()
+            resource.status = downloader.run().STATUS
+            print color_status(resource.status) + '  Resource "{}": {}'.format(name, resource.url)
 
-                clean_line += try_next(line)
+    def run(self):
+        print color('38;05;3', u"\U0001F4E6") + u'  ' + self.name
+        self.run_main()
 
-                if "#{" in clean_line:
-                    continue
+        self.run_patches()
+        self.run_resources()
 
-                clean_line = [x.strip() for x in clean_line.split(',') if x]
-                url_obj = {
-                    'url': clean_line[0].split(' ')[1].strip('\'\" ')
-                }
 
-                if len(clean_line) > 1:
-                    for x in clean_line[1:]:
-                        z, y = x.split("=>")
-                        if 'user' in z:
-                            url_obj[z.strip().replace(":", "")] = y.strip(' \"\'')
-                        else:
-                            url_obj[z.strip().replace(":", "")] = y.strip(' \"\'').replace(":", "")
-                if 'user' in url_obj.keys():
-                    user, passwd = url_obj.pop('user').split(':')
-                    url_obj.update(dict(auth=(user, passwd)))
+class Library(object):
+    def __init__(self, dictionary):
+        self.collection = OrderedDict(sorted(
+            {f.name: f for f in [Formula(module) for module in dictionary.iteritems()]}.iteritems()
+        ))
 
-                self.URLS.append(url_obj)
+    def __getitem__(self, item):
+        return self.collection.__getitem__(item)
 
-    def process(self):
-        for url_obj in self.URLS:
-            strategy = DownloadStrategyDetector(url_obj).detect()
-            if issubclass(strategy, Downloader):
-                downloader = strategy(url_obj)
-                resp = downloader.run()
-                if resp.STATUS != 200:
-                    self.ERRORS[url_obj['url']] = resp.STATUS
+    def __getattr__(self, item):
+        return self.collection.__getitem__(item)
 
-    def report(self):
-        if self.ERRORS:
-            sys.stdout.write(color('38;05;3', u"\U0001F4E6") + u'  ' + self.name + u'\n')
-            for url, errno in self.ERRORS.items():
-                sys.stdout.write('  ' + color_status(errno) + u' ' + url + u'\n')
-            sys.stdout.flush()
+    def __iter__(self):
+        return self.collection.itervalues()
+
+    def __len__(self):
+        return len(self.collection)

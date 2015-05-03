@@ -1,25 +1,52 @@
 #!/usr/bin/env python
 # coding: utf-8
-import os
-import glob
+import json
+import subprocess
 import signal
 
-from settings import FORMULAS_DIR
-from formula import Formula
+from formula import Library
+from settings import BREW_BIN
 from utils import bold, update_sources, signal_handler
+
 
 signal.signal(signal.SIGINT, signal_handler)
 
 
-def main():
-    filelist = glob.glob(os.path.join(FORMULAS_DIR, '*.rb'))
-    print bold(u"\u2139 {} formulas found.".format(len(filelist)))
+class Loader(object):
+    json = None
+    result_dict = None
 
-    for filename in filelist:
-        m = Formula(filename)
-        m.clean_urls()
-        m.process()
-        m.report()
+    def get_json(self, brew_bin=BREW_BIN):
+        """
+        Full command:
+        $ brew irb -r ./inject.rb | sed 1,2d
+
+        `sed` is used here to strip first two lines from Homebrew `irb`'s output, which ATM are:
+
+        ==> Interactive Homebrew Shell
+        Example commands available with: brew irb --examples
+
+        We need to decide: strip them with sed, or just use python?
+        Since Homebrew's `irb` command can change it's behavior in future, it's best for us to manually find
+        start of JSON output.
+        """
+        irb_proc = subprocess.Popen([brew_bin, 'irb', '-r', './inject.rb'], stdout=subprocess.PIPE)
+        self.json = subprocess.check_output(['sed', '1,2d'], stdin=irb_proc.stdout)
+        return self
+
+    def load(self):
+        self.result_dict = json.loads(self.json)
+        library = Library(self.result_dict)
+        print bold(u"\u2139 {} formulas found.".format(len(library)))
+        return library
+
+
+def main():
+    loader = Loader().get_json()
+    lib = loader.load()
+    for formula in lib:
+        formula.run()
+        print
 
 
 if __name__ == '__main__':

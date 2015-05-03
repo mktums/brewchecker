@@ -3,11 +3,11 @@
 **brew404** is a tool for checking [Homebrew](http://brew.sh/) packages' availability, written in Python.
 
 ## What it does?
-It downloads latest [Homebrew sources](https://github.com/homebrew/homebrew), scans [`Formula`](https://github.com/Homebrew/homebrew/tree/master/Library/Formula) folder for formulas, parse every of them, and tries to download every package, patch, etc.
+It downloads latest [Homebrew sources](https://github.com/homebrew/homebrew), scans [`Formula`](https://github.com/Homebrew/homebrew/tree/master/Library/Formula) folder for formulas, parse every of them, and tries to download every package, patch, etc from 'stable' section.
 
-While running it shows what packages contains error, like this:
+While running it shows statuses of package's resources:
 
-![screenshot](https://cloud.githubusercontent.com/assets/204508/7277847/ec3b4238-e91a-11e4-9d0e-ab64b5b21826.png)
+![screenshot](https://cloud.githubusercontent.com/assets/204508/7444267/095d0b88-f183-11e4-8e2c-d6eae9f7d186.png)
 
 ## Installation
 ### Requirements
@@ -51,7 +51,3 @@ So far it's just
 
 ## TODO:
 1. So far **brew404** works really slow (currently it's 6+ hours), since it not utilizes nor `threading` nor `multiprocessing` Python's modules.
-2. Some formulas have URL(s) that must be evaluated with Ruby (see [Issue #1](https://github.com/mktums/brew404/issues/1)), but since we can't do it from Python - it must be done some other way. For example: 
-``` bash
-echo "PP.pp(lib_name.f.stable)" | ./homebrew/bin/brew irb -r pp -f
-```
