@@ -1,11 +1,9 @@
 # coding: utf-8
-from pip._vendor.distlib.compat import OrderedDict
-
 from downloaders import (
     CurlDownloader, GitDownloader, ApacheDownloader, SubversionDownloader, MercurialDownloader,
     CVSDownloader, BazaarDownloader, FossilDownloader
 )
-from utils import color_status, color
+from utils import color_status, color, SlicableDict
 
 
 class Resource(object):
@@ -25,7 +23,6 @@ class Resource(object):
         #
         # [1] See https://indiewebcamp.com/curlable
         self.mirrors = [Resource({'url': url, 'strategy': 'CurlDownloadStrategy'}) for url in mirrors]
-
         self.strategy = specs.get('strategy')
 
         try:
@@ -90,25 +87,24 @@ class Formula(object):
     def run(self):
         print color('38;05;3', u"\U0001F4E6") + u'  ' + self.name
         self.run_main()
-
         self.run_patches()
         self.run_resources()
 
 
 class Library(object):
     def __init__(self, dictionary):
-        self.collection = OrderedDict(sorted(
+        self._collection = SlicableDict(sorted(
             {f.name: f for f in [Formula(module) for module in dictionary.iteritems()]}.iteritems()
         ))
 
-    def __getitem__(self, item):
-        return self.collection.__getitem__(item)
+    def __getitem__(self, key):
+        return self._collection.__getitem__(key)
 
     def __getattr__(self, item):
-        return self.collection.__getitem__(item)
+        return self._collection.__getitem__(item)
 
     def __iter__(self):
-        return self.collection.itervalues()
+        return self._collection.itervalues()
 
     def __len__(self):
-        return len(self.collection)
+        return len(self._collection)

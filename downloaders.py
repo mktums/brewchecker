@@ -46,9 +46,9 @@ class CurlDownloader(Downloader):
         header = StringIO.StringIO()
         c.setopt(c.HEADERFUNCTION, header.write)
 
-        if 'auth' in self.url_obj.specs.keys():
+        if 'user' in self.url_obj.specs.keys():
             c.setopt(c.HTTPAUTH, c.HTTPAUTH_ANY)
-            c.setopt(c.USERPWD, ":".join(self.url_obj.specs.get('auth')))
+            c.setopt(c.USERPWD, self.url_obj.specs.get('user'))
 
         if not skip_head:
             c.setopt(c.NOBODY, True)
@@ -110,9 +110,18 @@ class AbstractVCSDownloader(Downloader):
         repo_dir_name = hashlib.md5(self.REPO_URL).hexdigest()
         self.REPO_DIR = '{0}/{1}/{2}'.format(REPOS_DIR, self.NAME, repo_dir_name)
 
-        self.REVISION = self.url_obj.specs.get('revision', None)
-        self.BRANCH = self.url_obj.specs.get('branch', None)
-        self.TAG = self.url_obj.specs.get('tag', None)
+        # Thanks to `json.loads()` some of this are ints or floats, instead of strings.
+        revision = self.url_obj.specs.get('revision', None)
+        if revision:
+            self.REVISION = str(revision)
+
+        branch = self.url_obj.specs.get('branch', None)
+        if branch:
+            self.BRANCH = str(branch)
+
+        tag = self.url_obj.specs.get('tag', None)
+        if tag:
+            self.TAG = str(tag)
 
     def get_repo(self, repo):
         try:
