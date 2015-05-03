@@ -36,6 +36,7 @@ class Resource(object):
     def get_downloader_class(self):
         downloaders = {
             'CurlDownloadStrategy': CurlDownloader,
+            'NoUnzipCurlDownloadStrategy': CurlDownloader,
             'GitDownloadStrategy': GitDownloader,
             'CurlApacheMirrorDownloadStrategy': ApacheDownloader,
             'SubversionDownloadStrategy': SubversionDownloader,
