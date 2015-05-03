@@ -22,7 +22,7 @@ class Resource(object):
         # and they shares `meta` (or `specs`) with parent resource.
         #
         # [1] See https://indiewebcamp.com/curlable
-        self.mirrors = [Resource({'url': url, 'strategy': 'CurlDownloadStrategy'}) for url in mirrors]
+        self.mirrors = [Resource({'url': url, 'strategy': 'CurlDownloadStrategy', 'specs': self.specs}) for url in mirrors]
         self.strategy = specs.get('strategy')
 
         try:
@@ -67,22 +67,31 @@ class Formula(object):
         self.patches = [Resource(patch) for patch in specs.get('patches', None)]
         self.resources = {name: Resource(spec) for name, spec in specs.get('resources', None).items()}
 
+    def run_mirrors(self, resources):
+        for resource in resources.mirrors:
+            downloader = resource.get_downloader()
+            resource.status = downloader.run().STATUS
+            print color_status(resource.status) + '    Mirror: {}'.format(resource.url)
+
     def run_main(self):
         downloader = self.main.get_downloader()
         self.main.status = downloader.run().STATUS
         print color_status(self.main.status) + '  Main URL: {}'.format(self.main.url)
+        self.run_mirrors(self.main)
 
     def run_patches(self):
         for patch in self.patches:
             downloader = patch.get_downloader()
             patch.status = downloader.run().STATUS
             print color_status(patch.status) + '  Patch: {}'.format(patch.url)
+            self.run_mirrors(patch)
 
     def run_resources(self):
         for name, resource in self.resources.iteritems():
             downloader = resource.get_downloader()
             resource.status = downloader.run().STATUS
             print color_status(resource.status) + '  Resource "{}": {}'.format(name, resource.url)
+            self.run_mirrors(resource)
 
     def run(self):
         print color('38;05;3', u"\U0001F4E6") + u'  ' + self.name
