@@ -1,4 +1,7 @@
 # brew404
+> Any program is only as good as it is useful.
+> – _Linus Torvalds_
+
 ## What it is?
 **brew404** is a tool for checking [Homebrew](http://brew.sh/) packages' availability, written in Python.
 
@@ -50,4 +53,4 @@ So far it's just
 
 
 ## TODO:
-1. So far **brew404** works really slow (currently it's 6+ hours), since it not utilizes nor `threading` nor `multiprocessing` Python's modules.
+1. So far **brew404** works really slow (currently it tooks 2.5+ hours to finish), since it not utilizes nor `threading` nor `multiprocessing` Python's modules.
