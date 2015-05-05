@@ -49,7 +49,7 @@ def main():
     pool.map(lambda x: x.run(), lib, 1)
     pool.close()
     pool.join()
-    print lib.report.full_report()
+    print json.dumps(lib.report.full_report())
 
 if __name__ == '__main__':
     # print u"\U0001F37A  " + bold("Homebrew link checker")
