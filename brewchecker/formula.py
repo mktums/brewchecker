@@ -1,11 +1,10 @@
 # coding: utf-8
-import sys
-from downloaders import (
+from brewchecker.downloaders import (
     CurlDownloader, GitDownloader, ApacheDownloader, SubversionDownloader, MercurialDownloader,
     CVSDownloader, BazaarDownloader, FossilDownloader
 )
-from report import FormulaReport, LibraryReport
-from utils import color_status, color, SlicableDict
+from brewchecker.report import FormulaReport, LibraryReport
+from brewchecker.utils import SlicableDict
 
 
 class Resource(object):

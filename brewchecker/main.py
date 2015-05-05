@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 import json
+import os
 import subprocess
 import signal
 from multiprocessing.pool import ThreadPool
 
-from formula import Library
-from settings import BREW_BIN, THREADS
-from utils import bold, update_sources, signal_handler
+import click
 
+from brewchecker.formula import Library
+from brewchecker.settings import BREW_BIN, THREADS, BASE_DIR
+from brewchecker.utils import update_sources, signal_handler
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -31,7 +33,8 @@ class Loader(object):
         Since Homebrew's `irb` command can change it's behavior in future, it's best for us to manually find
         start of JSON output.
         """
-        irb_proc = subprocess.Popen([brew_bin, 'irb', '-r', './inject.rb'], stdout=subprocess.PIPE)
+        inject_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'inject.rb')
+        irb_proc = subprocess.Popen([brew_bin, 'irb', '-r', inject_file], stdout=subprocess.PIPE)
         self.json = subprocess.check_output(['sed', '1,2d'], stdin=irb_proc.stdout)
         return self
 
@@ -42,7 +45,9 @@ class Loader(object):
         return library
 
 
+@click.command()
 def main():
+    update_sources()
     loader = Loader().get_json()
     lib = loader.load()
     pool = ThreadPool(THREADS)
@@ -53,5 +58,6 @@ def main():
 
 if __name__ == '__main__':
     # print u"\U0001F37A  " + bold("Homebrew link checker")
-    update_sources()
     main()
+
+os.removedirs(BASE_DIR)

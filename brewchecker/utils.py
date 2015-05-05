@@ -5,7 +5,7 @@ import sys
 from pip._vendor.distlib.compat import OrderedDict
 from pip.vcs.git import Git
 
-from settings import BREW_CLONE_DIR, BREW_GIT_URL
+from brewchecker.settings import BREW_CLONE_DIR, BREW_GIT_URL, BASE_DIR
 
 
 def color(this_color, string_):
@@ -108,4 +108,5 @@ class SlicableDict(OrderedDict):
 
 def signal_handler(signal, frame):
     print '\rYou pressed Ctrl+C!'
+    os.removedirs(BASE_DIR)
     sys.exit(0)

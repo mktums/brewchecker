@@ -9,7 +9,7 @@ from pip.vcs.git import Git, os
 from pip.vcs.mercurial import Mercurial
 from pip.vcs.subversion import Subversion, get_rev_options
 
-from utils import CD
+from brewchecker.utils import CD
 
 
 class CustomGit(Git):

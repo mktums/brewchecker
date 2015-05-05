@@ -1,5 +1,5 @@
 # coding: utf-8
-from utils import SlicableDict
+from brewchecker.utils import SlicableDict
 
 
 class FormulaReport(object):

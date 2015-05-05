@@ -6,14 +6,14 @@ import json
 import os
 import shutil
 from urlparse import urlparse
-
 import pycurl
-from pip.exceptions import InstallationError
-from pip.vcs.bazaar import Bazaar
 import time
 
-from settings import USER_AGENT, REPOS_DIR
-from vcs import CustomGit, CustomHg, CustomSVN, CVS, Fossil
+from pip.exceptions import InstallationError
+from pip.vcs.bazaar import Bazaar
+
+from brewchecker.settings import USER_AGENT, REPOS_DIR
+from brewchecker.vcs import CustomGit, CustomHg, CustomSVN, CVS, Fossil
 
 
 class Downloader(object):
