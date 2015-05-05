@@ -3,9 +3,10 @@
 import json
 import subprocess
 import signal
+from multiprocessing.pool import ThreadPool
 
 from formula import Library
-from settings import BREW_BIN
+from settings import BREW_BIN, THREADS
 from utils import bold, update_sources, signal_handler
 
 
@@ -37,19 +38,20 @@ class Loader(object):
     def load(self):
         self.result_dict = json.loads(self.json)
         library = Library(self.result_dict)
-        print bold(u"\u2139 {} formulas found.".format(len(library)))
+        # print bold(u"\u2139 {} formulas found.".format(len(library)))
         return library
 
 
 def main():
     loader = Loader().get_json()
     lib = loader.load()
-    for formula in lib:
-        formula.run()
-        print
-
+    pool = ThreadPool(THREADS)
+    pool.map(lambda x: x.run(), lib, 1)
+    pool.close()
+    pool.join()
+    print lib.report.full_report()
 
 if __name__ == '__main__':
-    print u"\U0001F37A  " + bold("Homebrew link checker")
+    # print u"\U0001F37A  " + bold("Homebrew link checker")
     update_sources()
     main()

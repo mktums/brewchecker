@@ -34,17 +34,15 @@ def get_brew_last_commit(repo):
 def update_sources():
     s = get_brew_repo()
     if not os.path.exists(BREW_CLONE_DIR):
-        sys.stdout.write("  Cloning Homebrew sources… ")
+        # sys.stdout.write("  Cloning Homebrew sources… ")
         s.obtain(BREW_CLONE_DIR)
-        sys.stdout.write('Done!\n')
+        # sys.stdout.write('Done!\n')
     else:
-        sys.stdout.write("  Updating Homebrew sources… ")
+        # sys.stdout.write("  Updating Homebrew sources… ")
         s.update(BREW_CLONE_DIR, ('master',))
-        sys.stdout.write('Done!\n')
+        # sys.stdout.write('Done!\n')
 
-    print bold(u"\u2139 Last commit: {}".format(
-        get_brew_last_commit(s)[:8]
-    ))
+    # print bold(u"\u2139 Last commit: {}".format(get_brew_last_commit(s)[:8]))
     return s
 
 

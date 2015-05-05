@@ -1,8 +1,10 @@
 # coding: utf-8
+import sys
 from downloaders import (
     CurlDownloader, GitDownloader, ApacheDownloader, SubversionDownloader, MercurialDownloader,
     CVSDownloader, BazaarDownloader, FossilDownloader
 )
+from report import FormulaReport, LibraryReport
 from utils import color_status, color, SlicableDict
 
 
@@ -10,6 +12,7 @@ class Resource(object):
     def __init__(self, specs):
         self.url = specs.get('url')
         self.specs = specs.get('specs')
+        self.status = None
         mirrors = specs.get('mirrors', [])
         # N.B.:
         # Homebrew's documentation is unclear about setting options for mirrors (like :using, :revision, etc),
@@ -56,57 +59,71 @@ class Resource(object):
         return downloader
 
     def get_downloader(self):
+        if not self.downloader:
+            return None
         return self.downloader(self)
 
 
 class Formula(object):
-    def __init__(self, module):
+    def __init__(self, library, module):
+        self.library = library
+        self.report = None
         name, specs = module
         self.name = name
         self.main = Resource(specs.get('main'))
         self.patches = [Resource(patch) for patch in specs.get('patches', None)]
         self.resources = {name: Resource(spec) for name, spec in specs.get('resources', None).items()}
 
-    def run_mirrors(self, resources):
-        for resource in resources.mirrors:
-            downloader = resource.get_downloader()
+    def run_mirrors(self, resource):
+        for mirror in resource.mirrors:
+            downloader = mirror.get_downloader()
+            mirror.status = downloader.run().STATUS
+            # sys.stdout.write(color_status(mirror.status) + u'    Mirror: {}\n'.format(mirror.url))
+
+    def _run(self, resource):
+        downloader = resource.get_downloader()
+        if downloader:
             resource.status = downloader.run().STATUS
-            print color_status(resource.status) + '    Mirror: {}'.format(resource.url)
+        self.run_mirrors(resource)
 
     def run_main(self):
-        downloader = self.main.get_downloader()
-        self.main.status = downloader.run().STATUS
-        print color_status(self.main.status) + '  Main URL: {}'.format(self.main.url)
-        self.run_mirrors(self.main)
+        self._run(self.main)
+        # sys.stdout.write(color_status(self.main.status) + u'  Main: {}\n'.format(self.main.url))
 
     def run_patches(self):
         for patch in self.patches:
-            downloader = patch.get_downloader()
-            patch.status = downloader.run().STATUS
-            print color_status(patch.status) + '  Patch: {}'.format(patch.url)
-            self.run_mirrors(patch)
+            self._run(patch)
+            # sys.stdout.write(color_status(patch.status) + u'  Patch: {}\n'.format(patch.url))
 
     def run_resources(self):
         for name, resource in self.resources.iteritems():
-            downloader = resource.get_downloader()
-            resource.status = downloader.run().STATUS
-            print color_status(resource.status) + '  Resource "{}": {}'.format(name, resource.url)
-            self.run_mirrors(resource)
+            self._run(resource)
+            # sys.stdout.write(color_status(resource.status) + u'  Resource: {}\n'.format(resource.url))
 
     def run(self):
-        print color('38;05;3', u"\U0001F4E6") + u'  ' + self.name
+        sys.stdout.write(color('38;05;3', u"\U0001F4E6") + u'  {}\n'.format(self.name))
         self.run_main()
         self.run_patches()
         self.run_resources()
+        self.report = FormulaReport(self)
+        self.library.report.add(self.report)
 
 
 class Library(object):
-    def __init__(self, dictionary):
-        self._collection = SlicableDict(sorted(
-            {f.name: f for f in [Formula(module) for module in dictionary.iteritems()]}.iteritems()
-        ))
+    def __init__(self, dictionary=None):
+        if dictionary:
+            self._collection = SlicableDict(sorted(
+                {f.name: f for f in [Formula(self, module) for module in dictionary.iteritems()]}.iteritems()
+            ))
+        self.report = LibraryReport()
 
     def __getitem__(self, key):
+        if isinstance(key, slice):
+            lib = Library()
+            lib._collection = self._collection.__getitem__(key)
+            for formula in lib:
+                formula.library = lib
+            return lib
         return self._collection.__getitem__(key)
 
     def __getattr__(self, item):

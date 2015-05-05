@@ -10,6 +10,7 @@ from urlparse import urlparse
 import pycurl
 from pip.exceptions import InstallationError
 from pip.vcs.bazaar import Bazaar
+import time
 
 from settings import USER_AGENT, REPOS_DIR
 from vcs import CustomGit, CustomHg, CustomSVN, CVS, Fossil
@@ -107,9 +108,6 @@ class AbstractVCSDownloader(Downloader):
         super(AbstractVCSDownloader, self).__init__(url_obj)
         self.REPO_URL = self.url_obj.url
 
-        repo_dir_name = hashlib.md5(self.REPO_URL).hexdigest()
-        self.REPO_DIR = '{0}/{1}/{2}'.format(REPOS_DIR, self.NAME, repo_dir_name)
-
         # Thanks to `json.loads()` some of this are ints or floats, instead of strings.
         revision = self.url_obj.specs.get('revision', None)
         if revision:
@@ -151,6 +149,8 @@ class AbstractVCSDownloader(Downloader):
             self.STATUS = 404
 
     def run(self):
+        repo_dir_name = hashlib.md5('{}{}'.format(self.REPO_URL, time.time())).hexdigest()
+        self.REPO_DIR = '{0}/{1}/{2}'.format(REPOS_DIR, self.NAME, repo_dir_name)
         self.clean()
         repo = self.VCS_CLASS(self.REPO_URL)
         self.STATUS = 200
