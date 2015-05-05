@@ -101,7 +101,7 @@ class Formula(object):
             # sys.stdout.write(color_status(resource.status) + u'  Resource: {}\n'.format(resource.url))
 
     def run(self):
-        sys.stdout.write(color('38;05;3', u"\U0001F4E6") + u'  {}\n'.format(self.name))
+        # sys.stdout.write(color('38;05;3', u"\U0001F4E6") + u'  {}\n'.format(self.name))
         self.run_main()
         self.run_patches()
         self.run_resources()
