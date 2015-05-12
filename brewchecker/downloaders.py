@@ -5,14 +5,15 @@ import hashlib
 import json
 import os
 import shutil
-from urlparse import urlparse
 import pycurl
-import time
+from urlparse import urlparse
 
 from pip.exceptions import InstallationError
 from pip.vcs.bazaar import Bazaar
+import time
 
-from brewchecker.settings import USER_AGENT, REPOS_DIR
+from brewchecker.settings import settings
+from brewchecker.utils import is_ok
 from brewchecker.vcs import CustomGit, CustomHg, CustomSVN, CVS, Fossil
 
 
@@ -28,17 +29,13 @@ class Downloader(object):
         return
 
 
-####
-# N.B.: Here were HTTPDownloader and ApacheDownloader based on requests lib.
-# You can access them by checkouting @6c652e87
-####
 class CurlDownloader(Downloader):
     def fetch(self, skip_head=False, url=None):
         c = pycurl.Curl()
         url = self.url_obj.url if not url else url
 
         blackhole = StringIO.StringIO()
-        c.setopt(c.USERAGENT, USER_AGENT)
+        c.setopt(c.USERAGENT, settings.get('USER_AGENT'))
         c.setopt(c.URL, url)
         c.setopt(c.WRITEFUNCTION, blackhole.write)
         c.setopt(c.FOLLOWLOCATION, True)
@@ -87,7 +84,8 @@ class ApacheDownloader(CurlDownloader):
     def run(self):
         # Saving original URL for logs
         old_url = self.url_obj.url
-        self.url_obj.url = self.get_mirror()
+        if 'http://www.apache.org/dyn/closer.cgi?path=' in self.url_obj.url:
+            self.url_obj.url = self.get_mirror()
         super(ApacheDownloader, self).run()
         # Restoring original URL
         self.url_obj.url = old_url
@@ -150,17 +148,16 @@ class AbstractVCSDownloader(Downloader):
 
     def run(self):
         repo_dir_name = hashlib.md5('{}{}'.format(self.REPO_URL, time.time())).hexdigest()
-        self.REPO_DIR = '{0}/{1}/{2}'.format(REPOS_DIR, self.NAME, repo_dir_name)
-        self.clean()
+        self.REPO_DIR = '{0}/{1}/{2}'.format(settings.get('REPOS_DIR'), self.NAME, repo_dir_name)
         repo = self.VCS_CLASS(self.REPO_URL)
         self.STATUS = 200
         self.get_repo(repo)
 
-        if any([self.REVISION, self.BRANCH, self.TAG]):
-            self.run_checks(repo)
+        if is_ok(self.STATUS):
+            if any([self.REVISION, self.BRANCH, self.TAG]):
+                self.run_checks(repo)
 
         self.clean()
-
         return self
 
 

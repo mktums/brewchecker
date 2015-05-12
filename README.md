@@ -42,7 +42,25 @@ git clone https://github.com/mktums/brewchecker
 ```
 
 ## Usage
-So far it's just 
+In most cases you will want to run it as `brewchecker -qeo report.json`
+
+### All options
+
 ``` bash
-brewchecker
+Usage: brewchecker [OPTIONS]
+
+Options:
+  -n, --threads INTEGER  Number of simultaneous downloads performed by
+                         brewchecker.
+                         Warning: increasing this number may
+                         cause errors and slow down your system.  [default: 6]
+  -q, --quiet            No log will be printed to STDOUT.  [default: False]
+  -e, --only-errors      Report will only contain formulas with errors.
+                         [default: False]
+  -l, --log FILENAME     Path to log file.
+  -o, --output FILENAME  Path to output file where JSON report will be saved.
+                         Warning: omitting this option will cause printing
+                         report after with its log, unless -q/--quiet is
+                         presented.
+  --help                 Show this message and exit.
 ```

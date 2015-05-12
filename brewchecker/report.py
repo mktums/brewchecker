@@ -1,5 +1,5 @@
 # coding: utf-8
-from brewchecker.utils import SlicableDict
+from brewchecker.lib import SlicableDict
 
 
 class FormulaReport(object):
@@ -34,14 +34,17 @@ class FormulaReport(object):
                 }
             }
             self.summary['resources'].update(resource_dict)
+        if formula.ERRORS:
+            self.errors = self.summary
 
 
 class LibraryReport(object):
     def __init__(self):
         self.reports = SlicableDict()
+        self.errors = SlicableDict()
 
     def add(self, report):
         self.reports.update({report.name: report.summary})
 
-    def full_report(self):
-        return self.reports
+    def add_errors(self, report):
+        self.errors.update({report.name: report.errors})
