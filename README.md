@@ -33,7 +33,7 @@ brew install git hg bzr cvs svn fossil curl
 To install **brewchecker** use following command:
 
 ``` bash
-pip install https://github.com/mktums/brewchecker/releases/download/v0.2/brewchecker-0.2.1.tar.gz
+pip install https://github.com/mktums/brewchecker/releases/download/v0.2.1/brewchecker-0.2.1.tar.gz
 ```
 
 #### Getting sources
