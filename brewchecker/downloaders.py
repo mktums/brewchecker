@@ -13,7 +13,7 @@ from pip.vcs.bazaar import Bazaar
 import time
 
 from brewchecker.settings import settings
-from brewchecker.utils import is_ok, url_fix
+from brewchecker.utils import is_ok
 from brewchecker.vcs import CustomGit, CustomHg, CustomSVN, CVS, Fossil
 
 
@@ -33,7 +33,6 @@ class CurlDownloader(Downloader):
     def fetch(self, skip_head=False, url=None):
         c = pycurl.Curl()
         url = self.url_obj.url if not url else url
-        url = url_fix(url)
 
         blackhole = StringIO.StringIO()
         c.setopt(c.USERAGENT, settings.get('USER_AGENT'))
@@ -41,6 +40,9 @@ class CurlDownloader(Downloader):
         c.setopt(c.WRITEFUNCTION, blackhole.write)
         c.setopt(c.FOLLOWLOCATION, True)
         c.setopt(c.SSL_VERIFYPEER, 0)
+        c.setopt(c.NOSIGNAL, 1)
+        c.setopt(c.CONNECTTIMEOUT, 60)
+        c.setopt(c.TIMEOUT, 300)
 
         header = StringIO.StringIO()
         c.setopt(c.HEADERFUNCTION, header.write)
