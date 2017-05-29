@@ -13,6 +13,11 @@ from brewchecker.formula import Library
 from brewchecker.settings import settings
 from brewchecker.utils import update_sources, echo, clean
 
+try:
+    from subprocess import DEVNULL # py3k
+except ImportError:
+    DEVNULL = open(os.devnull, 'wb')
+
 
 class Loader(object):
     json = None
@@ -55,9 +60,17 @@ class Loader(object):
         Since Homebrew's `irb` command can change it's behavior in future, it's best for us to manually find
         start of JSON output.
         """
-        echo(u"Getting library from Homebrew...", nl=False)
         inject_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'inject.rb')
+
+        # Without updaing Homebrew there will be no `irb` command. It's in 'homebrew-core' tap.
         brew_bin = settings.get('BREW_BIN')
+        echo(u"Updating Homebrew...", nl=False)
+        brew_upd = subprocess.Popen(
+            [brew_bin, 'update', '-q'], stdout=DEVNULL, stderr=subprocess.STDOUT, close_fds=True)
+        brew_upd.wait()
+        echo(click.style(u"done!", "green"))
+
+        echo(u"Getting library from Homebrew...", nl=False)
         irb_proc = subprocess.Popen([brew_bin, 'irb', '-r', inject_file], stdout=subprocess.PIPE)
         self.json = subprocess.check_output(['sed', '1,2d'], stdin=irb_proc.stdout)
         echo(click.style(u"done!", "green"))
