@@ -18,26 +18,28 @@ class Resource(object):
         self.status = None
         self.strategy = specs.get('strategy')
 
-        # N.B.:
-        # Homebrew's documentation is unclear about setting options for mirrors (like :using, :revision, etc),
-        # so at this moment we can only assume that mirror MUST be a curlable[1] file.
-        #
-        # We must investigate this sourcecode for more details:
-        # https://github.com/Homebrew/homebrew/blob/d12b17e99b3071fba88fb5a6cbcefcbe136f7733/Library/Homebrew/download_strategy.rb#L260-L324
-        #
-        # For now it seems that mirrors exists only in CurlDownloadStrategy,
-        # and they shares `meta` (or `specs`) with parent resource.
-        #
-        # @MistyDeMeo's clarification on this (taken from IRC conversation with permission to cite):
-        #
-        # 00:58:30 mistym: It's an attribute on SoftwareSpec, so technically it could be used by any
-        #                  download strategy, but in practice CurlDownloadStrategy and its subclasses are the only
-        #                  download strategies that *use* mirrors. You could define them for other download strategies
-        #                  but they'd be ignored.
-        # 00:59:04 mistym: Unlike `url`, `mirrors` don't include their own download strategies; they're intended
-        #                  to be used by the download strategy defined by the `url`
-        #
-        # [1] See https://indiewebcamp.com/curlable
+        """
+        N.B.:
+        Homebrew's documentation is unclear about setting options for mirrors (like :using, :revision, etc),
+        so at this moment we can only assume that mirror MUST be a curlable[1] file.
+        
+        We must investigate this sourcecode for more details:
+        https://github.com/Homebrew/homebrew/blob/d12b17e99b3071fba88fb5a6cbcefcbe136f7733/Library/Homebrew/download_strategy.rb#L260-L324
+        
+        For now it seems that mirrors exists only in CurlDownloadStrategy,
+        and they shares `meta` (or `specs`) with parent resource.
+        
+        @MistyDeMeo's clarification on this (taken from IRC conversation with permission to cite):
+        
+        00:58:30 mistym: It's an attribute on SoftwareSpec, so technically it could be used by any
+                         download strategy, but in practice CurlDownloadStrategy and its subclasses are the only
+                         download strategies that *use* mirrors. You could define them for other download strategies
+                         but they'd be ignored.
+        00:59:04 mistym: Unlike `url`, `mirrors` don't include their own download strategies; they're intended
+                         to be used by the download strategy defined by the `url`
+        
+        [1] See https://indiewebcamp.com/curlable
+        """
         mirrors = specs.get('mirrors', [])
         self.mirrors = [Resource({'url': url, 'strategy': self.strategy, 'specs': self.specs}) for url in mirrors]
 
@@ -120,7 +122,6 @@ class Formula(object):
 
     def run(self):
         with Timer() as t:
-            # echo("Start checking {} formula...".format(click.style(self.name, bold=True)))
             self.run_main()
             self.run_patches()
             self.run_resources()
@@ -130,9 +131,7 @@ class Formula(object):
             self.library.report.add_errors(self.report)
         status = click.style("\u2714", "green") if not self.ERRORS else click.style("\u2718", "red")
         status_text = 'okay' if not self.ERRORS else 'not okay'
-        output = "{} {} formula is {}.".format(
-            status, click.style(self.name, bold=True), status_text, t.interval
-        )
+        output = f"{status} {click.style(self.name, bold=True)} formula is {status_text}."
         output += " Done in %.03f sec." % t.interval
         echo(output)
 

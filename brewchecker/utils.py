@@ -39,7 +39,7 @@ def update_sources():
     echo("Cloning Homebrew sources... ", nl=False)
     s.obtain(settings.get('BREW_CLONE_DIR'))
     echo(click.style("done!", "green"))
-    echo("Last commit: " + click.style("{}\n".format(get_brew_last_commit(s)[:8]), "green"))
+    echo("Last commit: " + click.style(f"{get_brew_last_commit(s)[:8]}\n", "green"))
     return s
 
 
@@ -57,7 +57,7 @@ class CD:
 
 
 def clean():
-    echo('Cleaning up {}...'.format(settings.get('BASE_DIR')), nl=False)
+    echo(f"Cleaning up {settings.get('BASE_DIR')}...", nl=False)
     rmtree(settings.get('BASE_DIR'))
     echo(click.style('done!', 'green'))
 

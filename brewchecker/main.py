@@ -26,17 +26,17 @@ class Loader(object):
         echo('Checking for VCS binaries:')
         no_binaries = []
         for cmd in ['curl', 'git', 'hg', 'svn', 'cvs', 'bzr', 'fossil']:
-            echo('  {}... '.format(cmd), nl=False)
+            echo(f'  {cmd}... ', nl=False)
             if which(cmd):
                 msg = click.style('yes', 'green')
             else:
                 no_binaries.append(cmd)
                 msg = click.style('no', 'red')
-            echo('{}.'.format(msg))
+            echo(f'{msg}.')
 
         if no_binaries:
             echo(click.style(
-                'Warning! Resources that uses {} will not be checked!'.format('/'.join(no_binaries)), 'yellow'
+                f"Warning! Resources that uses {'/'.join(no_binaries)} will not be checked!", 'yellow'
             ))
         return no_binaries
 
@@ -73,7 +73,7 @@ class Loader(object):
     def load(self):
         self.result_dict = json.loads(self.json)
         library = Library(self.result_dict)
-        echo('Formulas found: ' + click.style('{}\n'.format(len(library)), 'green'))
+        echo('Formulas found: ' + click.style(f'{len(library)}\n', 'green'))
         return library
 
 
