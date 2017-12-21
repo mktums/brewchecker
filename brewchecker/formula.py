@@ -1,11 +1,12 @@
 # coding: utf-8
+from collections import OrderedDict
+
 import click
 
 from brewchecker.downloaders import (
     CurlDownloader, GitDownloader, ApacheDownloader, SubversionDownloader, MercurialDownloader,
     CVSDownloader, BazaarDownloader, FossilDownloader
 )
-from brewchecker.lib import SlicableDict
 from brewchecker.report import FormulaReport, LibraryReport
 from brewchecker.utils import echo, is_ok, Timer
 
@@ -27,7 +28,7 @@ class Resource(object):
         # For now it seems that mirrors exists only in CurlDownloadStrategy,
         # and they shares `meta` (or `specs`) with parent resource.
         #
-        # @MistyDeMeo's clarification on this (taken from IRC conversation with her permission):
+        # @MistyDeMeo's clarification on this (taken from IRC conversation with permission to cite):
         #
         # 00:58:30 mistym: It's an attribute on SoftwareSpec, so technically it could be used by any
         #                  download strategy, but in practice CurlDownloadStrategy and its subclasses are the only
@@ -70,7 +71,7 @@ class Resource(object):
         try:
             downloader = downloaders.get(self.strategy)
         except KeyError as e:
-            raise RuntimeWarning(u"No downloader found for {}".format(e.args))
+            raise RuntimeWarning("No downloader found for {}".format(e.args))
         return downloader
 
     def get_downloader(self):
@@ -100,7 +101,8 @@ class Formula(object):
     def _run(self, resource):
         downloader = resource.get_downloader()
         if downloader:
-            resource.status = is_ok(downloader.run().STATUS)
+            result = downloader.run()
+            resource.status = is_ok(result.STATUS)
             if not resource.status:
                 self.ERRORS = True
             self.run_mirrors(resource)
@@ -113,12 +115,12 @@ class Formula(object):
             self._run(patch)
 
     def run_resources(self):
-        for name, resource in self.resources.iteritems():
+        for name, resource in self.resources.items():
             self._run(resource)
 
     def run(self):
         with Timer() as t:
-            # echo(u"Start checking {} formula...".format(click.style(self.name, bold=True)))
+            # echo("Start checking {} formula...".format(click.style(self.name, bold=True)))
             self.run_main()
             self.run_patches()
             self.run_resources()
@@ -126,37 +128,27 @@ class Formula(object):
         self.library.report.add(self.report)
         if self.ERRORS:
             self.library.report.add_errors(self.report)
-        status = click.style(u"\u2714", "green") if not self.ERRORS else click.style(u"\u2718", "red")
-        status_text = u'okay' if not self.ERRORS else u'not okay'
-        output = u"{} {} formula is {}.".format(
+        status = click.style("\u2714", "green") if not self.ERRORS else click.style("\u2718", "red")
+        status_text = 'okay' if not self.ERRORS else 'not okay'
+        output = "{} {} formula is {}.".format(
             status, click.style(self.name, bold=True), status_text, t.interval
         )
-        output += u" Done in %.03f sec." % t.interval
+        output += " Done in %.03f sec." % t.interval
         echo(output)
 
 
 class Library(object):
     def __init__(self, dictionary=None):
         if dictionary:
-            self._collection = SlicableDict(sorted(
-                {f.name: f for f in [Formula(self, module) for module in dictionary.iteritems()]}.iteritems()
-            ))
+            self._collection = OrderedDict()
+            for module in sorted(dictionary.items()):
+                f = Formula(self, module)
+                self._collection[f.name] = f
+
         self.report = LibraryReport()
 
-    def __getitem__(self, key):
-        if isinstance(key, slice):
-            lib = Library()
-            lib._collection = self._collection.__getitem__(key)
-            for formula in lib:
-                formula.library = lib
-            return lib
-        return self._collection.__getitem__(key)
-
-    def __getattr__(self, item):
-        return self._collection.__getitem__(item)
-
     def __iter__(self):
-        return self._collection.itervalues()
+        return iter(self._collection.values())
 
     def __len__(self):
         return len(self._collection)

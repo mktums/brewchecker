@@ -1,5 +1,4 @@
 # coding: utf-8
-import logging
 import errno
 from os import makedirs
 
@@ -61,11 +60,8 @@ class SimpleVCS(object):
         self.url = url
         super(SimpleVCS, self).__init__()
 
-    def run_command(self, cmd, show_stdout=True,
-                    filter_stdout=None, cwd=None,
-                    raise_on_returncode=True,
-                    command_level=logging.DEBUG, command_desc=None,
-                    extra_environ=None):
+    def run_command(self, cmd, show_stdout=True, cwd=None, raise_on_returncode=True,
+                    command_desc=None, extra_environ=None):
         """
         Run a VCS subcommand
         This is simply a wrapper around call_subprocess that adds the VCS
@@ -73,9 +69,8 @@ class SimpleVCS(object):
         """
         cmd = [self.name] + cmd
         try:
-            return call_subprocess(cmd, show_stdout, filter_stdout, cwd,
-                                   raise_on_returncode, command_level,
-                                   command_desc, extra_environ)
+            return call_subprocess(
+                cmd, show_stdout, cwd, raise_on_returncode, command_desc, extra_environ=extra_environ)
         except OSError as e:
             # errno.ENOENT = no such file or directory
             # In other words, the VCS executable isn't available

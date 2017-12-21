@@ -11,9 +11,9 @@ from brewchecker.settings import settings
 
 def echo(message=None, nl=True, err=False, _color=None):
     log = settings.get('LOG')
-    msg = message if message else u''
+    msg = message if message else ''
     if nl:  # Nasty click.echo's bug =(
-        msg += u'\n'
+        msg += '\n'
     if log:
         click.echo(msg, log, nl=False, err=err, color=_color)
     if not settings.get('QUIET'):
@@ -36,10 +36,10 @@ def get_brew_last_commit(repo):
 
 def update_sources():
     s = get_brew_repo()
-    echo(u"Cloning Homebrew sources... ", nl=False)
+    echo("Cloning Homebrew sources... ", nl=False)
     s.obtain(settings.get('BREW_CLONE_DIR'))
-    echo(click.style(u"done!", "green"))
-    echo(u"Last commit: " + click.style(u"{}\n".format(get_brew_last_commit(s)[:8]), "green"))
+    echo(click.style("done!", "green"))
+    echo("Last commit: " + click.style("{}\n".format(get_brew_last_commit(s)[:8]), "green"))
     return s
 
 
@@ -57,9 +57,9 @@ class CD:
 
 
 def clean():
-    echo(u'Cleaning up {}...'.format(settings.get('BASE_DIR')), nl=False)
+    echo('Cleaning up {}...'.format(settings.get('BASE_DIR')), nl=False)
     rmtree(settings.get('BASE_DIR'))
-    echo(click.style(u'done!', 'green'))
+    echo(click.style('done!', 'green'))
 
 
 class Timer:
@@ -67,6 +67,6 @@ class Timer:
         self.start = time.time()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.end = time.time()
         self.interval = self.end - self.start

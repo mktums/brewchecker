@@ -9,6 +9,7 @@ class DefaultSettings(object):
     BREW_GIT_URL = "git+https://github.com/Homebrew/homebrew.git"
 
 
+# noinspection PyPep8Naming
 class LazySettings(object):
     def _setup(self, name):
         setattr(self, name, getattr(DefaultSettings, name, None))
@@ -19,7 +20,7 @@ class LazySettings(object):
         return getattr(self, name)
 
     def load(self, **kwargs):
-        for name, value in kwargs.iteritems():
+        for name, value in kwargs.items():
             setattr(self, name.upper(), value)
 
     @property

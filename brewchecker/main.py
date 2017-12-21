@@ -1,22 +1,16 @@
-#!/usr/bin/env python
-# coding: utf-8
-import os
-import sys
+#!/usr/bin/env python3
 import json
+import os
 import subprocess
-from multiprocessing.pool import ThreadPool
+import sys
+from concurrent import futures
+from subprocess import DEVNULL
 
 import click
-from pip._vendor.distlib.compat import which
-
 from brewchecker.formula import Library
 from brewchecker.settings import settings
 from brewchecker.utils import update_sources, echo, clean
-
-try:
-    from subprocess import DEVNULL # py3k
-except ImportError:
-    DEVNULL = open(os.devnull, 'wb')
+from pip._vendor.distlib.compat import which
 
 
 class Loader(object):
@@ -29,20 +23,20 @@ class Loader(object):
 
     @staticmethod
     def detect():
-        echo(u'Checking for VCS binaries:')
+        echo('Checking for VCS binaries:')
         no_binaries = []
-        for cmd in [u'curl', u'git', u'hg', u'svn', u'cvs', u'bzr', u'fossil']:
-            echo(u'  {}... '.format(cmd), nl=False)
+        for cmd in ['curl', 'git', 'hg', 'svn', 'cvs', 'bzr', 'fossil']:
+            echo('  {}... '.format(cmd), nl=False)
             if which(cmd):
-                msg = click.style(u'yes', 'green')
+                msg = click.style('yes', 'green')
             else:
                 no_binaries.append(cmd)
-                msg = click.style(u'no', 'red')
-            echo(u'{}.'.format(msg))
+                msg = click.style('no', 'red')
+            echo('{}.'.format(msg))
 
         if no_binaries:
             echo(click.style(
-                u'Warning! Resources that uses {} will not be checked!'.format(u'/'.join(no_binaries)), 'yellow'
+                'Warning! Resources that uses {} will not be checked!'.format('/'.join(no_binaries)), 'yellow'
             ))
         return no_binaries
 
@@ -64,41 +58,42 @@ class Loader(object):
 
         # Without updaing Homebrew there will be no `irb` command. It's in 'homebrew-core' tap.
         brew_bin = settings.get('BREW_BIN')
-        echo(u"Updating Homebrew...", nl=False)
+        echo("Updating Homebrew...", nl=False)
         brew_upd = subprocess.Popen(
             [brew_bin, 'update', '-q'], stdout=DEVNULL, stderr=subprocess.STDOUT, close_fds=True)
         brew_upd.wait()
-        echo(click.style(u"done!", "green"))
+        echo(click.style("done!", "green"))
 
-        echo(u"Getting library from Homebrew...", nl=False)
+        echo("Getting library from Homebrew...", nl=False)
         irb_proc = subprocess.Popen([brew_bin, 'irb', '-r', inject_file], stdout=subprocess.PIPE)
         self.json = subprocess.check_output(['sed', '1,2d'], stdin=irb_proc.stdout)
-        echo(click.style(u"done!", "green"))
+        echo(click.style("done!", "green"))
         return self
 
     def load(self):
         self.result_dict = json.loads(self.json)
         library = Library(self.result_dict)
-        echo(u'Formulas found: ' + click.style(u'{}\n'.format(len(library)), 'green'))
+        echo('Formulas found: ' + click.style('{}\n'.format(len(library)), 'green'))
         return library
 
 
 @click.command()
 @click.option(
-    '-n', '--threads', type=click.INT, default=8, show_default=True, help=
-    "Number of simultaneous downloads performed by brewchecker.\n"
-    "Warning: increasing this number may cause errors and slow down your system."
+    '-n', '--threads', type=click.INT, default=8, show_default=True, help="""
+    Number of simultaneous downloads performed by brewchecker
+    Warning: increasing this number may cause errors and slow down your system.
+    """
 )
 @click.option('-q', '--quiet', is_flag=True, default=False, show_default=True, help="No log will be printed to STDOUT.")
 @click.option(
-    '-e', '--only-errors', is_flag=True, default=False, show_default=True, help=
-    "Report will only contain formulas with errors."
+    '-e', '--only-errors', is_flag=True, default=False, show_default=True,
+    help="Report will only contain formulas with errors.",
 )
 @click.option('-l', '--log', type=click.File('a', encoding='utf-8', lazy=True), help="Path to log file.")
 @click.option(
-    '-o', '--output', type=click.File('w'), help=
-    "Path to output file where JSON report will be saved.\n"
-    "Warning: omitting this option will cause printing report after with its log, unless -q/--quiet is presented."
+    '-o', '--output', type=click.File('w'), help="""
+    Path to output file where JSON report will be saved
+    Warning: omitting this option will cause printing report after with its log, unless -q/--quiet is presented."""
 )
 def main(**kwargs):
     settings.load(**kwargs)
@@ -106,10 +101,8 @@ def main(**kwargs):
     loader.get_json()
     lib = loader.load()
 
-    pool = ThreadPool(settings.get('THREADS'))
-    pool.map(lambda x: x.run(), lib, 1)
-    pool.close()
-    pool.join()
+    with futures.ThreadPoolExecutor(max_workers=settings.get('THREADS')) as executor:
+        executor.map(lambda x: x.run(), lib, chunksize=1)
 
     if settings.get('ONLY_ERRORS'):
         report = lib.report.errors
@@ -122,10 +115,11 @@ def main(**kwargs):
         click.echo(json.dumps(report))
     clean()
 
+
 if __name__ == '__main__':
     try:
         sys.exit(main())
-    except:
+    except BaseException:
         raise
     finally:
         clean()

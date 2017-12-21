@@ -1,12 +1,12 @@
 # coding: utf-8
-import StringIO
+from io import BytesIO
 import abc
 import hashlib
 import json
 import os
 import shutil
 import pycurl
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 from pip.exceptions import InstallationError
 from pip.vcs.bazaar import Bazaar
@@ -34,7 +34,7 @@ class CurlDownloader(Downloader):
         c = pycurl.Curl()
         url = self.url_obj.url if not url else url
 
-        blackhole = StringIO.StringIO()
+        blackhole = BytesIO()
         c.setopt(c.USERAGENT, settings.get('USER_AGENT'))
         c.setopt(c.URL, url)
         c.setopt(c.WRITEFUNCTION, blackhole.write)
@@ -44,7 +44,7 @@ class CurlDownloader(Downloader):
         c.setopt(c.CONNECTTIMEOUT, 60)
         c.setopt(c.TIMEOUT, 300)
 
-        header = StringIO.StringIO()
+        header = BytesIO()
         c.setopt(c.HEADERFUNCTION, header.write)
 
         if 'user' in self.url_obj.specs.keys():
@@ -69,7 +69,7 @@ class CurlDownloader(Downloader):
                 self.STATUS, _ = self.fetch()
                 if self.STATUS != 200:
                     self.STATUS, _ = self.fetch(skip_head=True)
-        except Exception:
+        except BaseException:
             self.STATUS = 404
         return self
 
@@ -125,7 +125,7 @@ class AbstractVCSDownloader(Downloader):
     def get_repo(self, repo):
         try:
             repo.obtain(self.REPO_DIR)
-        except Exception:
+        except BaseException:
             self.STATUS = 404
 
     def clean(self):
@@ -150,7 +150,7 @@ class AbstractVCSDownloader(Downloader):
             self.STATUS = 404
 
     def run(self):
-        repo_dir_name = hashlib.md5('{}{}'.format(self.REPO_URL, time.time())).hexdigest()
+        repo_dir_name = hashlib.md5('{}{}'.format(self.REPO_URL, time.time()).encode('utf-8')).hexdigest()
         self.REPO_DIR = '{0}/{1}/{2}'.format(settings.get('REPOS_DIR'), self.NAME, repo_dir_name)
         repo = self.VCS_CLASS(self.REPO_URL)
         self.STATUS = 200

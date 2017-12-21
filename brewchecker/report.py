@@ -1,5 +1,5 @@
 # coding: utf-8
-from brewchecker.lib import SlicableDict
+from collections import OrderedDict
 
 
 class FormulaReport(object):
@@ -25,7 +25,7 @@ class FormulaReport(object):
             }
             self.summary['patches'] += [patch_dict, ]
 
-        for name, resource in formula.resources.iteritems():
+        for name, resource in formula.resources.items():
             resource_dict = {
                 name: {
                     'url': resource.url,
@@ -40,8 +40,8 @@ class FormulaReport(object):
 
 class LibraryReport(object):
     def __init__(self):
-        self.reports = SlicableDict()
-        self.errors = SlicableDict()
+        self.reports = OrderedDict()
+        self.errors = OrderedDict()
 
     def add(self, report):
         self.reports.update({report.name: report.summary})
